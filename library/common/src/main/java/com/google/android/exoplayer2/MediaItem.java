@@ -901,7 +901,7 @@ public final class MediaItem implements Bundleable {
     /** Optional custom cache key (only used for progressive streams). */
     @Nullable public final String customCacheKey;
 
-    /** Optional subtitles to be sideloaded. */
+    /** Optional subtitles to be sideloaded. 在侧边加载的字幕 */
     public final ImmutableList<SubtitleConfiguration> subtitleConfigurations;
     /** @deprecated Use {@link #subtitleConfigurations} instead. */
     @Deprecated public final List<Subtitle> subtitles;

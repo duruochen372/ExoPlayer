@@ -18,6 +18,14 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+
+  <TextView
+    android:id="@+id/open_test_tv"
+    android:layout_width="match_parent"
+    android:layout_height="80dp"
+    android:gravity="center"
+    android:text="进入测试页面" />
+
   <ExpandableListView android:id="@+id/sample_list"
       android:layout_width="match_parent"
       android:layout_height="match_parent"/>

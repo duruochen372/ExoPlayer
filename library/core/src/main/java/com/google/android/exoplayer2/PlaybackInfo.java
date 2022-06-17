@@ -94,7 +94,7 @@ import java.util.List;
   /**
    * Creates an empty placeholder playback info which can be used for masking as long as no real
    * playback info is available.
-   *
+   * 创建一个空的占位符播放信息，只要没有真正的播放信息可用，它就可以用于屏蔽。
    * @param emptyTrackSelectorResult An empty track selector result with null entries for each
    *     renderer.
    * @return A placeholder playback info.

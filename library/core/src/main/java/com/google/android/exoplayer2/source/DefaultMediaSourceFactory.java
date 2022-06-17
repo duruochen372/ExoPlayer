@@ -309,11 +309,12 @@ public final class DefaultMediaSourceFactory implements MediaSourceFactory {
     if (scheme != null && scheme.equals(C.SSAI_SCHEME)) {
       return checkNotNull(serverSideAdInsertionMediaSourceFactory).createMediaSource(mediaItem);
     }
+    //获取流媒体协议类型
     @C.ContentType
     int type =
         Util.inferContentTypeForUriAndMimeType(
             mediaItem.localConfiguration.uri, mediaItem.localConfiguration.mimeType);
-    @Nullable
+    @Nullable    //通过流媒体协议类型获取MediaSource工厂类
     MediaSource.Factory mediaSourceFactory = delegateFactoryLoader.getMediaSourceFactory(type);
     checkStateNotNull(
         mediaSourceFactory, "No suitable media source factory found for content type: " + type);
@@ -340,9 +341,9 @@ public final class DefaultMediaSourceFactory implements MediaSourceFactory {
     if (!liveConfiguration.equals(mediaItem.liveConfiguration)) {
       mediaItem = mediaItem.buildUpon().setLiveConfiguration(liveConfiguration).build();
     }
-
+    //对于flv，默认创建ProgressiveMediaSource
     MediaSource mediaSource = mediaSourceFactory.createMediaSource(mediaItem);
-
+    //判断是否有字幕配置
     List<MediaItem.SubtitleConfiguration> subtitleConfigurations =
         castNonNull(mediaItem.localConfiguration).subtitleConfigurations;
     if (!subtitleConfigurations.isEmpty()) {
@@ -382,6 +383,7 @@ public final class DefaultMediaSourceFactory implements MediaSourceFactory {
 
       mediaSource = new MergingMediaSource(mediaSources);
     }
+    //判断是否配置了广告
     return maybeWrapWithAdsMediaSource(mediaItem, maybeClipMediaSource(mediaItem, mediaSource));
   }
 
@@ -404,7 +406,7 @@ public final class DefaultMediaSourceFactory implements MediaSourceFactory {
 
   private MediaSource maybeWrapWithAdsMediaSource(MediaItem mediaItem, MediaSource mediaSource) {
     checkNotNull(mediaItem.localConfiguration);
-    @Nullable
+    @Nullable  //判断是否配置了广告
     MediaItem.AdsConfiguration adsConfiguration = mediaItem.localConfiguration.adsConfiguration;
     if (adsConfiguration == null) {
       return mediaSource;

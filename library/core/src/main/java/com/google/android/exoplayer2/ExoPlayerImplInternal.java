@@ -1395,7 +1395,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       notifyAll();
     }
   }
-
+  //播放器重置
   private void resetInternal(
       boolean resetRenderers,
       boolean resetPosition,
@@ -1404,10 +1404,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
     handler.removeMessages(MSG_DO_SOME_WORK);
     pendingRecoverableRendererError = null;
     isRebuffering = false;
-    mediaClock.stop();
+    mediaClock.stop();  //暂停媒体时钟（播放时启动并跟播放同步）
     rendererPositionUs = MediaPeriodQueue.INITIAL_RENDERER_POSITION_OFFSET_US;
     for (Renderer renderer : renderers) {
-      try {
+      try { //暂停所有解码渲染
         disableRenderer(renderer);
       } catch (ExoPlaybackException | RuntimeException e) {
         // There's nothing we can do.

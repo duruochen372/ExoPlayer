@@ -487,8 +487,8 @@ import java.util.concurrent.TimeoutException;
   @Override
   public void prepare() {
     verifyApplicationThread();
-    boolean playWhenReady = getPlayWhenReady();
-    @AudioFocusManager.PlayerCommand
+    boolean playWhenReady = getPlayWhenReady();  //资源是否已经就绪
+    @AudioFocusManager.PlayerCommand  // 判断是否可以播放了
     int playerCommand = audioFocusManager.updateAudioFocus(playWhenReady, Player.STATE_BUFFERING);
     updatePlayWhenReady(
         playWhenReady, playerCommand, getPlayWhenReadyChangeReason(playWhenReady, playerCommand));
@@ -504,7 +504,7 @@ import java.util.concurrent.TimeoutException;
     // player after this prepare. The internal player can't change the playback info immediately
     // because it uses a callback.
     pendingOperationAcks++;
-    internalPlayer.prepare();
+    internalPlayer.prepare(); //正在开始prepare
     updatePlaybackInfo(
         playbackInfo,
         /* ignored */ TIMELINE_CHANGE_REASON_SOURCE_UPDATE,

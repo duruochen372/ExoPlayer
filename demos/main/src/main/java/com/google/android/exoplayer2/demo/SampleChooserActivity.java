@@ -85,6 +85,12 @@ public class SampleChooserActivity extends AppCompatActivity
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.sample_chooser_activity);
+
+    findViewById(R.id.open_test_tv).setOnClickListener(v -> {
+      startActivity(new Intent(this, TestActivity.class));
+    });
+
+
     sampleAdapter = new SampleAdapter();
     sampleListView = findViewById(R.id.sample_list);
 

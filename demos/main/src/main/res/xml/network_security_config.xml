@@ -1,0 +1,11 @@
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+
+    <!-- 这里的debug-overrides禁止改成base-config 否则release用户也可以抓包 -->
+    <debug-overrides>
+        <trust-anchors>
+            <!-- Trust user added CAs while debuggable only -->
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
