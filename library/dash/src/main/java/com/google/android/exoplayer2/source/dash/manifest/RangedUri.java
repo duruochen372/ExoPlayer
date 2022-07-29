@@ -80,7 +80,7 @@ public final class RangedUri {
    * @param baseUri The base Uri.
    * @return The merged {@link RangedUri} if the merge was successful. Null otherwise.
    */
-  @Nullable
+  @Nullable //<Initialization>和 <SegmentBase>的range合并
   public RangedUri attemptMerge(@Nullable RangedUri other, String baseUri) {
     final String resolvedUri = resolveUriString(baseUri);
     if (other == null || !resolvedUri.equals(other.resolveUriString(baseUri))) {

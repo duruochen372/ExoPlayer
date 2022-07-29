@@ -51,6 +51,7 @@ import com.google.android.exoplayer2.upstream.HttpDataSource.InvalidResponseCode
 import com.google.android.exoplayer2.upstream.LoadErrorHandlingPolicy;
 import com.google.android.exoplayer2.upstream.LoaderErrorThrower;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -206,7 +207,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
 
     long periodDurationUs = manifest.getPeriodDurationUs(periodIndex);
 
-    List<Representation> representations = getRepresentations();
+    List<Representation> representations = getRepresentations();  //获取各码率的地址
     representationHolders = new RepresentationHolder[trackSelection.length()];
     for (int i = 0; i < representationHolders.length; i++) {
       Representation representation = representations.get(trackSelection.getIndexInTrackGroup(i));
@@ -226,6 +227,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
                   playerId),
               /* segmentNumShift= */ 0,
               representation.getIndex());
+      Log.d("duruochen", "创建媒体资源:" + ( selectedBaseUrl != null ? selectedBaseUrl.url : representation.baseUrls.get(0).url));
     }
   }
 
@@ -353,9 +355,9 @@ public class DefaultDashChunkSource implements DashChunkSource {
     }
 
     long availableLiveDurationUs = getAvailableLiveDurationUs(nowUnixTimeUs, playbackPositionUs);
-    trackSelection.updateSelectedTrack(
+    trackSelection.updateSelectedTrack(  //AdaptiveTrackSelection
         playbackPositionUs, bufferedDurationUs, availableLiveDurationUs, queue, chunkIterators);
-
+    Log.d("duruochen", "根据trackSelection选择的轨道去取资源  index=" + trackSelection.getSelectedIndex());
     RepresentationHolder representationHolder =
         updateSelectedBaseUrl(trackSelection.getSelectedIndex());
     if (representationHolder.chunkExtractor != null) {
@@ -370,6 +372,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
       }
       if (pendingInitializationUri != null || pendingIndexUri != null) {
         // We have initialization and/or index requests to make.
+        Log.d("duruochen", "创建newInitializationChunk");
         out.chunk =
             newInitializationChunk(
                 representationHolder,
@@ -401,6 +404,8 @@ public class DefaultDashChunkSource implements DashChunkSource {
             loadPositionUs,
             firstAvailableSegmentNum,
             lastAvailableSegmentNum);
+    Log.d("duruochen", "获取segmentNum=" + segmentNum + "   firstAvailableSegmentNum=" + firstAvailableSegmentNum
+    + "   lastAvailableSegmentNum=" + lastAvailableSegmentNum);
     if (segmentNum < firstAvailableSegmentNum) {
       // This is before the first chunk in the current manifest.
       fatalError = new BehindLiveWindowException();
@@ -432,6 +437,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
     }
 
     long seekTimeUs = queue.isEmpty() ? loadPositionUs : C.TIME_UNSET;
+    Log.d("duruochen", "创建newMediaChunk：seekTimeUs=" + seekTimeUs + "  ");
     out.chunk =
         newMediaChunk(
             representationHolder,
@@ -631,9 +637,12 @@ public class DefaultDashChunkSource implements DashChunkSource {
     } else {
       requestUri = indexUri;
     }
+
     DataSpec dataSpec =
         DashUtil.buildDataSpec(
             representation, representationHolder.selectedBaseUrl.url, requestUri, /* flags= */ 0);
+    Log.d("duruochen", "newInitializationChunk:url=" + representationHolder.selectedBaseUrl.url + "   start=" + requestUri.start
+    + "    length=" + requestUri.length);
     return new InitializationChunk(
         dataSource,
         dataSpec,
@@ -707,6 +716,8 @@ public class DefaultDashChunkSource implements DashChunkSource {
           DashUtil.buildDataSpec(
               representation, representationHolder.selectedBaseUrl.url, segmentUri, flags);
       long sampleOffsetUs = -representation.presentationTimeOffsetUs;
+      Log.d("duruochen", "ContainerMediaChunk:url=" + representationHolder.selectedBaseUrl.url + "   start=" + segmentUri.start
+          + "    length=" + segmentUri.length);
       return new ContainerMediaChunk(
           dataSource,
           dataSpec,

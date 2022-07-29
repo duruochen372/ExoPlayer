@@ -18,6 +18,7 @@ package com.google.android.exoplayer2.extractor.mp4;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
+import java.util.Arrays;
 
 /** Sample table for a track in an MP4 file. */
 /* package */ final class TrackSampleTable {
@@ -98,5 +99,19 @@ import com.google.android.exoplayer2.util.Util;
       }
     }
     return C.INDEX_UNSET;
+  }
+
+  @Override
+  public String toString() {
+    return "TrackSampleTable{" +
+        "track=" + track +
+        ", sampleCount=" + sampleCount +
+        ", offsets=" + Arrays.toString(offsets) +
+        ", sizes=" + Arrays.toString(sizes) +
+        ", maximumSize=" + maximumSize +
+        ", timestampsUs=" + Arrays.toString(timestampsUs) +
+        ", flags=" + Arrays.toString(flags) +
+        ", durationUs=" + durationUs +
+        '}';
   }
 }

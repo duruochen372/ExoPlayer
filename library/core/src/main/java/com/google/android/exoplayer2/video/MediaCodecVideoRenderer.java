@@ -643,7 +643,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
       @Nullable MediaCodecAdapter codec = getCodec();
       if (codec != null) {
         if (Util.SDK_INT >= 23 && surface != null && !codecNeedsSetOutputSurfaceWorkaround) {
-          setOutputSurfaceV23(codec, surface);
+          setOutputSurfaceV23(codec, surface); //给解码器设置surface
+          Log.d("duruochen", "给解码器设置surface");
         } else {
           releaseCodec();
           maybeInitCodecOrBypass();
@@ -899,9 +900,9 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     }
   }
 
-  @Override
+  @Override  //处理解码后的数据
   protected boolean processOutputBuffer(
-      long positionUs,
+      long positionUs, //当前正在渲染的时间
       long elapsedRealtimeUs,
       @Nullable MediaCodecAdapter codec,
       @Nullable ByteBuffer buffer,
@@ -915,12 +916,13 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
       throws ExoPlaybackException {
     Assertions.checkNotNull(codec); // Can not render video without codec
 
+//    Log.d("duruochen", "处理解码后的数据");
     if (initialPositionUs == C.TIME_UNSET) {
       initialPositionUs = positionUs;
     }
 
     if (bufferPresentationTimeUs != lastBufferPresentationTimeUs) {
-      frameReleaseHelper.onNextFrame(bufferPresentationTimeUs);
+      frameReleaseHelper.onNextFrame(bufferPresentationTimeUs); //同步帧的展示时间
       this.lastBufferPresentationTimeUs = bufferPresentationTimeUs;
     }
 
@@ -948,7 +950,8 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
 
     if (surface == dummySurface) {
       // Skip frames in sync with playback, so we'll be at the right frame if the mode changes.
-      if (isBufferLate(earlyUs)) {
+      if (isBufferLate(earlyUs)) {  //晚了直接丢帧
+        Log.d("duruochen", "晚了直接丢帧");
         skipOutputBuffer(codec, bufferIndex, presentationTimeUs);
         updateVideoFrameProcessingOffsetCounters(earlyUs);
         return true;
@@ -996,6 +999,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
         && maybeDropBuffersToKeyframe(positionUs, treatDroppedBuffersAsSkipped)) {
       return false;
     } else if (shouldDropOutputBuffer(earlyUs, elapsedRealtimeUs, isLastBuffer)) {
+      Log.d("duruochen", "太晚了  直接丢掉");
       if (treatDroppedBuffersAsSkipped) {
         skipOutputBuffer(codec, bufferIndex, presentationTimeUs);
       } else {
@@ -1242,6 +1246,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   @RequiresApi(21)
   protected void renderOutputBufferV21(
       MediaCodecAdapter codec, int index, long presentationTimeUs, long releaseTimeNs) {
+//    Log.d("duruochen", "消费掉视频数据");
     maybeNotifyVideoSizeChanged();
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);

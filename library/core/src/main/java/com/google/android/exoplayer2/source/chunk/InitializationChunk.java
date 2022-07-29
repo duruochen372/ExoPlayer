@@ -96,7 +96,7 @@ public final class InitializationChunk extends Chunk {
       DataSpec loadDataSpec = dataSpec.subrange(nextLoadPosition);
       ExtractorInput input =
           new DefaultExtractorInput(
-              dataSource, loadDataSpec.position, dataSource.open(loadDataSpec));
+              dataSource, loadDataSpec.position, dataSource.open(loadDataSpec));  //
       // Load and decode the initialization data.
       try {
         while (!loadCanceled && chunkExtractor.read(input)) {}
@@ -104,7 +104,7 @@ public final class InitializationChunk extends Chunk {
         nextLoadPosition = input.getPosition() - dataSpec.position;
       }
     } finally {
-      DataSourceUtil.closeQuietly(dataSource);
+      DataSourceUtil.closeQuietly(dataSource);  //load结束，网速计算结束
     }
   }
 }

@@ -30,6 +30,7 @@ import com.google.android.exoplayer2.trackselection.TrackSelectorResult;
 import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Log;
+import java.util.Iterator;
 import org.checkerframework.checker.nullness.compatqual.NullableType;
 
 /** Holds a {@link MediaPeriod} with information required to play it as part of a timeline. */
@@ -184,6 +185,16 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
     prepared = true;
     trackGroups = mediaPeriod.getTrackGroups();
     TrackSelectorResult selectorResult = selectTracks(playbackSpeed, timeline);
+    StringBuilder renderCofig = new StringBuilder();
+    for (RendererConfiguration configuration : selectorResult.rendererConfigurations) {
+      if (configuration != null) {
+        renderCofig.append(configuration.tunneling).append("  ");
+      } else {
+        renderCofig.append("null").append("  ");
+      }
+    }
+    Log.d("duruochen", "handlePrepared完成后，根据轨道组类型去选择对应类型的媒体轨道，便于后面选择哪几种解码器来开启："
+        + renderCofig.toString());
     long requestedStartPositionUs = info.startPositionUs;
     if (info.durationUs != C.TIME_UNSET && requestedStartPositionUs >= info.durationUs) {
       // Make sure start position doesn't exceed period duration.

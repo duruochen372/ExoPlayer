@@ -48,4 +48,11 @@ public final class RendererConfiguration {
   public int hashCode() {
     return tunneling ? 0 : 1;
   }
+
+  @Override
+  public String toString() {
+    return "RendererConfiguration{" +
+        "tunneling=" + tunneling +
+        '}';
+  }
 }

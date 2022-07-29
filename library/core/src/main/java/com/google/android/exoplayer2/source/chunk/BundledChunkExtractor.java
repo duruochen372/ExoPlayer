@@ -34,6 +34,7 @@ import com.google.android.exoplayer2.extractor.mp4.FragmentedMp4Extractor;
 import com.google.android.exoplayer2.extractor.rawcc.RawCcExtractor;
 import com.google.android.exoplayer2.upstream.DataReader;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.ParsableByteArray;
 import java.io.IOException;
@@ -184,7 +185,10 @@ public final class BundledChunkExtractor implements ExtractorOutput, ChunkExtrac
 
   @Override
   public void seekMap(SeekMap seekMap) {
+//    Log.d("duruochen", "分块完成:" + seekMap.toString());
     this.seekMap = seekMap;
+    Exception e = new Exception();
+    e.printStackTrace();
   }
 
   // Internal logic.
@@ -221,6 +225,7 @@ public final class BundledChunkExtractor implements ExtractorOutput, ChunkExtrac
 
     @Override
     public void format(Format format) {
+      Log.d("duruochen", "BundledChunkExtractor设置format");
       sampleFormat =
           manifestFormat != null ? format.withManifestFormatInfo(manifestFormat) : format;
       castNonNull(trackOutput).format(sampleFormat);

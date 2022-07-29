@@ -54,6 +54,7 @@ import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.upstream.LoadErrorHandlingPolicy;
 import com.google.android.exoplayer2.upstream.LoaderErrorThrower;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.Util;
 import com.google.common.primitives.Ints;
@@ -151,6 +152,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
     eventStreams = period.eventStreams;
     Pair<TrackGroupArray, TrackGroupInfo[]> result =
         buildTrackGroups(drmSessionManager, period.adaptationSets, eventStreams);
+    Log.d("duruochen", "构建轨道组");
     trackGroups = result.first;
     trackGroupInfos = result.second;
   }
@@ -270,6 +272,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
       @NullableType SampleStream[] streams,
       boolean[] streamResetFlags,
       long positionUs) {
+    Log.d("duruochen" , "selectTracks  构建SampleStream");
     int[] streamIndexToTrackGroupIndex = getStreamIndexToTrackGroupIndex(selections);
     releaseDisabledStreams(selections, mayRetainStreamFlags, streams);
     releaseOrphanEmbeddedStreams(selections, streams, streamIndexToTrackGroupIndex);
@@ -293,6 +296,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
     eventSampleStreams = new EventSampleStream[eventSampleStreamList.size()];
     eventSampleStreamList.toArray(eventSampleStreams);
 
+    Log.d("duruochen", "创建各媒体类型的loader");
     compositeSequenceableLoader =
         compositeSequenceableLoaderFactory.createCompositeSequenceableLoader(sampleStreams);
     return positionUs;
@@ -312,7 +316,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
 
   @Override
   public boolean continueLoading(long positionUs) {
-    return compositeSequenceableLoader.continueLoading(positionUs);
+    return compositeSequenceableLoader.continueLoading(positionUs); //CompositeSequenceableLoader
   }
 
   @Override
@@ -734,9 +738,10 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
       trackGroupInfos[existingTrackGroupCount++] = TrackGroupInfo.mpdEventTrack(i);
     }
   }
-
+  //构建媒体流
   private ChunkSampleStream<DashChunkSource> buildSampleStream(
       TrackGroupInfo trackGroupInfo, ExoTrackSelection selection, long positionUs) {
+    Log.d("duruochen", "根据TrackGroupInfo类型构建媒体流:type=" + trackGroupInfo.trackType);
     int embeddedTrackCount = 0;
     boolean enableEventMessageTrack =
         trackGroupInfo.embeddedEventMessageTrackGroupIndex != C.INDEX_UNSET;

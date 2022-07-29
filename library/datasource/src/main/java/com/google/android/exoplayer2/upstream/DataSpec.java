@@ -23,6 +23,7 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlayerLibraryInfo;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -79,6 +80,7 @@ public final class DataSpec {
       key = dataSpec.key;
       flags = dataSpec.flags;
       customData = dataSpec.customData;
+//      Log.d("duruochen", "new dataspec：position=" + position + "   length=" + length);
     }
 
     /**
@@ -169,6 +171,7 @@ public final class DataSpec {
      * @return The builder.
      */
     public Builder setLength(long length) {
+//      Log.d("duruochen", "setLength=" + length);
       this.length = length;
       return this;
     }
@@ -691,6 +694,7 @@ public final class DataSpec {
    * @return A data spec that represents a subrange of the data defined by this DataSpec.
    */
   public DataSpec subrange(long offset) {
+//    Log.d("duruochen", "subrange:offset=" + offset + "  length=" + (length - offset));
     return subrange(offset, length == C.LENGTH_UNSET ? C.LENGTH_UNSET : length - offset);
   }
 
@@ -705,6 +709,7 @@ public final class DataSpec {
     if (offset == 0 && this.length == length) {
       return this;
     } else {
+      Log.d("duruochen", "下次去数据的起始位置:" + (position + offset) + "     总长度:" + length);
       return new DataSpec(
           uri,
           uriPositionOffset,

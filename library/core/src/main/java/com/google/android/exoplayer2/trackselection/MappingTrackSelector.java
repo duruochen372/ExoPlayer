@@ -376,7 +376,7 @@ public abstract class MappingTrackSelector extends TrackSelector {
           findRenderer(
               rendererCapabilities, group, rendererTrackGroupCounts, preferUnassociatedRenderer);
       // Evaluate the support that the renderer provides for each track in the group.
-      @Capabilities
+      @Capabilities  //根据format 解码器去判断是否支持该format
       int[] rendererFormatSupport =
           rendererIndex == rendererCapabilities.length
               ? new int[group.length]

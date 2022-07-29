@@ -40,6 +40,7 @@ import com.google.android.exoplayer2.upstream.TeeDataSource;
 import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.upstream.cache.Cache.CacheException;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.PriorityTaskManager;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -579,8 +580,10 @@ public final class CacheDataSource implements DataSource {
 
       if (currentRequestIgnoresCache) {
         bytesRemaining = C.LENGTH_UNSET;
+        Log.d("duruochen", "设置要读取的长度3:bytesRemaining=" + bytesRemaining);
       } else {
         bytesRemaining = ContentMetadata.getContentLength(cache.getContentMetadata(key));
+//        Log.d("duruochen", "设置要读取的长度2:bytesRemaining=" + bytesRemaining);
         if (bytesRemaining != C.LENGTH_UNSET) {
           bytesRemaining -= dataSpec.position;
           if (bytesRemaining < 0) {
@@ -783,12 +786,13 @@ public final class CacheDataSource implements DataSource {
     currentDataSource = nextDataSource;
     currentDataSpec = nextDataSpec;
     currentDataSourceBytesRead = 0;
-    long resolvedLength = nextDataSource.open(nextDataSpec);
+    long resolvedLength = nextDataSource.open(nextDataSpec); //DefaultDataSource进行网络请求
 
     // Update bytesRemaining, actualUri and (if writing to cache) the cache metadata.
     ContentMetadataMutations mutations = new ContentMetadataMutations();
     if (nextDataSpec.length == C.LENGTH_UNSET && resolvedLength != C.LENGTH_UNSET) {
       bytesRemaining = resolvedLength;
+      Log.d("duruochen", "设置要读取的长度1:bytesRemaining=" + bytesRemaining);
       ContentMetadataMutations.setContentLength(mutations, readPosition + bytesRemaining);
     }
     if (isReadingFromUpstream()) {

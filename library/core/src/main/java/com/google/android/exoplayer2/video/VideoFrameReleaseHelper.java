@@ -210,7 +210,7 @@ public final class VideoFrameReleaseHelper {
    *
    * @param framePresentationTimeUs The frame presentation timestamp, in microseconds.
    */
-  public void onNextFrame(long framePresentationTimeUs) {
+  public void onNextFrame(long framePresentationTimeUs) {  //在一帧数据被跳过、丢弃或渲染之前，渲染器为其设置一个展示时间
     if (pendingLastAdjustedFrameIndex != C.INDEX_UNSET) {
       lastAdjustedFrameIndex = pendingLastAdjustedFrameIndex;
       lastAdjustedReleaseTimeNs = pendingLastAdjustedReleaseTimeNs;

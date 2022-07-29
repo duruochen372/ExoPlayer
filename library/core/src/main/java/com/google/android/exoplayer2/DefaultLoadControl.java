@@ -320,6 +320,7 @@ public class DefaultLoadControl implements LoadControl {
   @Override
   public void onTracksSelected(
       Renderer[] renderers, TrackGroupArray trackGroups, ExoTrackSelection[] trackSelections) {
+    Log.d("duruochen", "onTracksSelected");
     targetBufferBytes =
         targetBufferBytesOverwrite == C.LENGTH_UNSET
             ? calculateTargetBufferBytes(renderers, trackSelections)
@@ -352,6 +353,7 @@ public class DefaultLoadControl implements LoadControl {
     return retainBackBufferFromKeyframe;
   }
 
+  //判断是否要继续下载流媒体数据
   @Override
   public boolean shouldContinueLoading(
       long playbackPositionUs, long bufferedDurationUs, float playbackSpeed) {
@@ -374,11 +376,13 @@ public class DefaultLoadControl implements LoadControl {
             "Target buffer size reached with less than 500ms of buffered media data.");
       }
     } else if (bufferedDurationUs >= maxBufferUs || targetBufferSizeReached) {
+//      Log.d("duruochen", "缓存区爆了 暂停下载：bufferedDurationUs=" + bufferedDurationUs + "   maxBufferUs=" + maxBufferUs);
       isLoading = false;
     } // Else don't change the loading state.
     return isLoading;
   }
 
+  //是否要开始播放
   @Override
   public boolean shouldStartPlayback(
       long bufferedDurationUs, float playbackSpeed, boolean rebuffering, long targetLiveOffsetUs) {

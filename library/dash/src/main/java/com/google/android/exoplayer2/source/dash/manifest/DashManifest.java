@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.offline.FilterableManifest;
 import com.google.android.exoplayer2.offline.StreamKey;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -116,6 +117,26 @@ public class DashManifest implements FilterableManifest<DashManifest> {
     this.location = location;
     this.serviceDescription = serviceDescription;
     this.periods = periods == null ? Collections.emptyList() : periods;
+    Log.d("duruochen", "解析完成：" + toString());
+  }
+
+  @Override
+  public String toString() {
+    return "DashManifest{" +
+        "availabilityStartTimeMs=" + availabilityStartTimeMs +
+        ", durationMs=" + durationMs +
+        ", minBufferTimeMs=" + minBufferTimeMs +
+        ", dynamic=" + dynamic +
+        ", minUpdatePeriodMs=" + minUpdatePeriodMs +
+        ", timeShiftBufferDepthMs=" + timeShiftBufferDepthMs +
+        ", suggestedPresentationDelayMs=" + suggestedPresentationDelayMs +
+        ", publishTimeMs=" + publishTimeMs +
+        ", utcTiming=" + utcTiming +
+        ", serviceDescription=" + serviceDescription +
+        ", location=" + location +
+        ", programInformation=" + programInformation +
+        ", periods=" + periods +
+        '}';
   }
 
   public final int getPeriodCount() {

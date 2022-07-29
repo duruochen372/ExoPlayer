@@ -297,6 +297,7 @@ public class DefaultRenderersFactory implements RenderersFactory {
       TextOutput textRendererOutput,
       MetadataOutput metadataRendererOutput) {
     ArrayList<Renderer> renderersList = new ArrayList<>();
+    //创建视频解码渲染器
     buildVideoRenderers(
         context,
         extensionRendererMode,
@@ -310,6 +311,7 @@ public class DefaultRenderersFactory implements RenderersFactory {
     AudioSink audioSink =
         buildAudioSink(context, enableFloatOutput, enableAudioTrackPlaybackParams, enableOffload);
     if (audioSink != null) {
+      //创建音频解码渲染器
       buildAudioRenderers(
           context,
           extensionRendererMode,
@@ -320,19 +322,23 @@ public class DefaultRenderersFactory implements RenderersFactory {
           audioRendererEventListener,
           renderersList);
     }
+    //创建字幕解码渲染器
     buildTextRenderers(
         context,
         textRendererOutput,
         eventHandler.getLooper(),
         extensionRendererMode,
         renderersList);
+    //创建元数据解码渲染器
     buildMetadataRenderers(
         context,
         metadataRendererOutput,
         eventHandler.getLooper(),
         extensionRendererMode,
         renderersList);
+    //创建拍摄解码渲染器
     buildCameraMotionRenderers(context, extensionRendererMode, renderersList);
+    //创建其他解码器
     buildMiscellaneousRenderers(context, eventHandler, extensionRendererMode, renderersList);
     return renderersList.toArray(new Renderer[0]);
   }

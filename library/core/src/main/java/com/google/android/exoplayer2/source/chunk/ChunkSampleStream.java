@@ -574,6 +574,7 @@ public class ChunkSampleStream<T extends ChunkSource>
       chunkQueue = readOnlyMediaChunks;
       loadPositionUs = getLastMediaChunk().endTimeUs;
     }
+    Log.d("duruochen","取下一个媒体块:mediaType=" + primaryTrackType +  "       positionUs=" + positionUs + "  loadPositionUs=" + loadPositionUs);
     chunkSource.getNextChunk(positionUs, loadPositionUs, chunkQueue, nextChunkHolder);
     boolean endOfStream = nextChunkHolder.endOfStream;
     @Nullable Chunk loadable = nextChunkHolder.chunk;
@@ -610,6 +611,7 @@ public class ChunkSampleStream<T extends ChunkSource>
     } else if (loadable instanceof InitializationChunk) {
       ((InitializationChunk) loadable).init(chunkOutput);
     }
+    //开始加载数据
     long elapsedRealtimeMs =
         loader.startLoading(
             loadable, this, loadErrorHandlingPolicy.getMinimumLoadableRetryCount(loadable.type));
@@ -622,6 +624,8 @@ public class ChunkSampleStream<T extends ChunkSource>
         loadable.trackSelectionData,
         loadable.startTimeUs,
         loadable.endTimeUs);
+    Log.d("duruochen", "媒体数据loadStarted:mediaType=" + primaryTrackType + "  startTime=" + loadable.startTimeUs
+    + "   endTimeUs=" + loadable.endTimeUs);
     return true;
   }
 

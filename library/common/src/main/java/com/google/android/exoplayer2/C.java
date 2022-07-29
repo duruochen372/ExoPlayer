@@ -775,7 +775,7 @@ public final class C {
   public static final int SELECTION_REASON_CUSTOM_BASE = 10000;
 
   /** A default size in bytes for an individual allocation that forms part of a larger buffer. */
-  public static final int DEFAULT_BUFFER_SEGMENT_SIZE = 64 * 1024;
+  public static final int DEFAULT_BUFFER_SEGMENT_SIZE = 64 * 1024; //一个存储节点存64KB数据
 
   /** A default seek back increment, in milliseconds. */
   public static final long DEFAULT_SEEK_BACK_INCREMENT_MS = 5_000;

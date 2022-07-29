@@ -28,6 +28,7 @@ import com.google.android.exoplayer2.upstream.Allocation;
 import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.upstream.DataReader;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.ParsableByteArray;
 import com.google.android.exoplayer2.util.Util;
 import java.io.EOFException;
@@ -244,8 +245,10 @@ import java.util.Arrays;
   private void postAppend(int length) {
     totalBytesWritten += length;
     if (totalBytesWritten == writeAllocationNode.endPosition) {
+//      Log.d("duruochen", "写满了 换下一个节点：" + totalBytesWritten);
       writeAllocationNode = writeAllocationNode.next;
     }
+//    Log.d("duruochen", "队列中总字节数:" + totalBytesWritten + "   " + this);
   }
 
   /**
@@ -265,6 +268,7 @@ import java.util.Arrays;
       DecoderInputBuffer buffer,
       SampleExtrasHolder extrasHolder,
       ParsableByteArray scratch) {
+//    Log.d("duruochen", "readSampleData取数据");
     if (buffer.isEncrypted()) {
       allocationNode = readEncryptionData(allocationNode, buffer, extrasHolder, scratch);
     }
@@ -410,6 +414,7 @@ import java.util.Arrays;
       absolutePosition += toCopy;
       if (absolutePosition == allocationNode.endPosition) {
         allocationNode = allocationNode.next;
+//        Log.d("duruochen", "读完了 换下一个节点：" + absolutePosition);
       }
     }
     return allocationNode;
@@ -441,6 +446,7 @@ import java.util.Arrays;
       absolutePosition += toCopy;
       if (absolutePosition == allocationNode.endPosition) {
         allocationNode = allocationNode.next;
+//        Log.d("duruochen", "读完了 换下一个节点1：" + absolutePosition + "   ");
       }
     }
     return allocationNode;

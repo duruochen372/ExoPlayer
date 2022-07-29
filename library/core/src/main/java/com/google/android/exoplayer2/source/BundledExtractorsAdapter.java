@@ -73,7 +73,7 @@ public final class BundledExtractorsAdapter implements ProgressiveMediaExtractor
     } else {
       for (Extractor extractor : extractors) {
         try {
-          if (extractor.sniff(extractorInput)) {
+          if (extractor.sniff(extractorInput)) {   //进行格式校验，来最终决定extractor
             this.extractor = extractor;
             break;
           }

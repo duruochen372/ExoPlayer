@@ -25,6 +25,7 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Arrays;
 
 /** Encapsulates information describing an MP4 track. */
 public final class Track {
@@ -135,5 +136,23 @@ public final class Track {
         nalUnitLengthFieldLength,
         editListDurations,
         editListMediaTimes);
+  }
+
+  @Override
+  public String toString() {
+    return "Track{" +
+        "id=" + id +
+        ", type=" + type +
+        ", timescale=" + timescale +
+        ", movieTimescale=" + movieTimescale +
+        ", durationUs=" + durationUs +
+        ", format=" + format +
+        ", sampleTransformation=" + sampleTransformation +
+        ", editListDurations=" + Arrays.toString(editListDurations) +
+        ", editListMediaTimes=" + Arrays.toString(editListMediaTimes) +
+        ", nalUnitLengthFieldLength=" + nalUnitLengthFieldLength +
+        ", sampleDescriptionEncryptionBoxes=" + Arrays
+        .toString(sampleDescriptionEncryptionBoxes) +
+        '}';
   }
 }

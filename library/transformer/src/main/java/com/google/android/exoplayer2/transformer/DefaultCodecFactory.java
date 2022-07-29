@@ -66,7 +66,7 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
   }
 
   @Override
-  @SuppressLint("InlinedApi")
+  @SuppressLint("InlinedApi")  //创建解码器
   public Codec createForVideoDecoding(Format format, Surface outputSurface)
       throws TransformationException {
     MediaFormat mediaFormat =
@@ -108,7 +108,7 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
         /* outputSurface= */ null);
   }
 
-  @Override
+  @Override  //创建编码器
   public Codec createForVideoEncoding(Format format, List<String> allowedMimeTypes)
       throws TransformationException {
     checkArgument(format.width != Format.NO_VALUE);

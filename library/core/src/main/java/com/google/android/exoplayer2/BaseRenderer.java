@@ -26,6 +26,7 @@ import com.google.android.exoplayer2.source.SampleStream;
 import com.google.android.exoplayer2.source.SampleStream.ReadDataResult;
 import com.google.android.exoplayer2.source.SampleStream.ReadFlags;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MediaClock;
 import java.io.IOException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -422,6 +423,7 @@ public abstract class BaseRenderer implements Renderer, RendererCapabilities {
   protected final @ReadDataResult int readSource(
       FormatHolder formatHolder, DecoderInputBuffer buffer, @ReadFlags int readFlags) {
     @ReadDataResult
+        //从sampleQueue中读取数据
     int result = Assertions.checkNotNull(stream).readData(formatHolder, buffer, readFlags);
     if (result == C.RESULT_BUFFER_READ) {
       if (buffer.isEndOfStream()) {
@@ -431,6 +433,7 @@ public abstract class BaseRenderer implements Renderer, RendererCapabilities {
       buffer.timeUs += streamOffsetUs;
       readingPositionUs = max(readingPositionUs, buffer.timeUs);
     } else if (result == C.RESULT_FORMAT_READ) {
+      Log.d("duruochen", "读取到format信息");
       Format format = Assertions.checkNotNull(formatHolder.format);
       if (format.subsampleOffsetUs != Format.OFFSET_SAMPLE_RELATIVE) {
         format =

@@ -85,6 +85,17 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * MediaCodec可以处理具体的视频流，主要有这几个方法：
+ *
+ * getInputBuffers：获取需要编码数据的输入流队列，返回的是一个ByteBuffer数组
+ * queueInputBuffer：输入流入队列
+ * dequeueInputBuffer：从输入流队列中取数据进行编码操作
+ * getOutputBuffers：获取编解码之后的数据输出流队列，返回的是一个ByteBuffer数组
+ * dequeueOutputBuffer：从输出队列中取出编码操作之后的数据
+ * releaseOutputBuffer：处理完成，释放ByteBuffer数据
+ */
+
 /** An abstract renderer that uses {@link MediaCodec} to decode samples for rendering. */
 public abstract class MediaCodecRenderer extends BaseRenderer {
 
@@ -789,9 +800,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       } else if (codec != null) {
         long renderStartTimeMs = SystemClock.elapsedRealtime();
         TraceUtil.beginSection("drainAndFeed");
-        while (drainOutputBuffer(positionUs, elapsedRealtimeUs)
+        while (drainOutputBuffer(positionUs, elapsedRealtimeUs) //取出解码后的数据
             && shouldContinueRendering(renderStartTimeMs)) {}
-        while (feedInputBuffer() && shouldContinueRendering(renderStartTimeMs)) {}
+        while (feedInputBuffer() && shouldContinueRendering(renderStartTimeMs)) //往解码器里扔数据{}
         TraceUtil.endSection();
       } else {
         decoderCounters.skippedInputBufferCount += skipSource(positionUs);
@@ -1166,6 +1177,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @throws ExoPlaybackException If an error occurs feeding the input buffer.
    */
   private boolean feedInputBuffer() throws ExoPlaybackException {
+//    Log.d("duruochen", "从SampleQueue中取数据，送到解码器去解码");
     if (codec == null || codecDrainState == DRAIN_STATE_WAIT_END_OF_STREAM || inputStreamEnded) {
       return false;
     }
@@ -1220,6 +1232,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
     @SampleStream.ReadDataResult int result;
     try {
+      Log.d("duuruochen", "取数据");
       result = readSource(formatHolder, buffer, /* readFlags= */ 0);
     } catch (InsufficientCapacityException e) {
       onCodecError(e);
@@ -1345,6 +1358,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         codec.queueSecureInputBuffer(
             inputIndex, /* offset= */ 0, buffer.cryptoInfo, presentationTimeUs, /* flags= */ 0);
       } else {
+//        Log.d("duruochen", "把读到的数据送去解码");
         codec.queueInputBuffer(
             inputIndex, /* offset= */ 0, buffer.data.limit(), presentationTimeUs, /* flags= */ 0);
       }
@@ -1410,7 +1424,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    *     reused for the new format, or {@code null} if the renderer did not have a decoder.
    */
   @CallSuper
-  @Nullable
+  @Nullable //格式发生变化
   protected DecoderReuseEvaluation onInputFormatChanged(FormatHolder formatHolder)
       throws ExoPlaybackException {
     waitingForFirstSampleInFormat = true;
@@ -1433,8 +1447,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     }
 
     if (codec == null) {
+      Log.d("duruochen", "解析到媒体格式发送变化，开始创建解码器");
       availableCodecInfos = null;
-      maybeInitCodecOrBypass();
+      maybeInitCodecOrBypass(); //创建解码器
       return null;
     }
 
@@ -1464,7 +1479,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     @DecoderDiscardReasons int overridingDiscardReasons = 0;
     switch (evaluation.result) {
       case REUSE_RESULT_NO:
-        drainAndReinitializeCodec();
+        drainAndReinitializeCodec();  //format发送变化，排尽缓存，重新初始化解码器
         break;
       case REUSE_RESULT_YES_WITH_FLUSH:
         if (!updateCodecOperatingRate(newFormat)) {
@@ -1773,7 +1788,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    *
    * @throws ExoPlaybackException If an error occurs re-initializing a codec.
    */
-  private void drainAndReinitializeCodec() throws ExoPlaybackException {
+  private void drainAndReinitializeCodec() throws ExoPlaybackException {   //排尽缓存，然后重新初始化解码器
     if (codecReceivedBuffers) {
       codecDrainState = DRAIN_STATE_SIGNAL_END_OF_STREAM;
       codecDrainAction = DRAIN_ACTION_REINITIALIZE;
@@ -1787,13 +1802,14 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @return Whether it may be possible to drain more output data.
    * @throws ExoPlaybackException If an error occurs draining the output buffer.
    */
-  private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs)
+  private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs) //排尽buffer
       throws ExoPlaybackException {
     if (!hasOutputBuffer()) {
       int outputIndex;
       if (codecNeedsEosOutputExceptionWorkaround && codecReceivedEos) {
         try {
-          outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo);
+//          Log.d("duruochen", "取解码后的数据1");
+          outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo); //从输出队列中取出编码操作之后的数据
         } catch (IllegalStateException e) {
           processEndOfStream();
           if (outputStreamEnded) {
@@ -1803,6 +1819,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
           return false;
         }
       } else {
+//        Log.d("duruochen", "取解码后的数据2");
         outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo);
       }
 
@@ -1963,7 +1980,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @throws ExoPlaybackException If an error occurs processing the output buffer.
    */
   protected abstract boolean processOutputBuffer(
-      long positionUs,
+      long positionUs, //当前媒体时间（以微秒为单位），在渲染循环的当前迭代开始时测量。
       long elapsedRealtimeUs,
       @Nullable MediaCodecAdapter codec,
       @Nullable ByteBuffer buffer,
@@ -2099,7 +2116,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     return false;
   }
 
-  private void reinitializeCodec() throws ExoPlaybackException {
+  private void reinitializeCodec() throws ExoPlaybackException { //重新初始化解码器
+    Log.d("duruochen", "reinitializeCodec");
     releaseCodec();
     maybeInitCodecOrBypass();
   }

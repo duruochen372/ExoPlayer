@@ -389,4 +389,18 @@ public abstract class Representation {
       return segmentBase.isExplicit();
     }
   }
+
+  @Override
+  public String toString() {
+    return "Representation{" +
+        "revisionId=" + revisionId +
+        ", format=" + format +
+        ", baseUrls=" + baseUrls +
+        ", presentationTimeOffsetUs=" + presentationTimeOffsetUs +
+        ", inbandEventStreams=" + inbandEventStreams +
+        ", essentialProperties=" + essentialProperties +
+        ", supplementalProperties=" + supplementalProperties +
+        ", initializationUri=" + initializationUri +
+        '}';
+  }
 }

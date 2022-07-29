@@ -101,29 +101,29 @@ public final class FlvExtractor implements Extractor {
 
   @Override
   public boolean sniff(ExtractorInput input) throws IOException {
-    // Check if file starts with "FLV" tag
+    // Check if file starts with "FLV" tag   读取三个字节
     input.peekFully(scratch.getData(), 0, 3);
     scratch.setPosition(0);
-    if (scratch.readUnsignedInt24() != FLV_TAG) {
+    if (scratch.readUnsignedInt24() != FLV_TAG) {  //读取前三个字节，判断是否是FLV
       return false;
     }
 
-    // Checking reserved flags are set to 0
+    // Checking reserved flags are set to 0    读取两个字节，判断保留字段是否是0
     input.peekFully(scratch.getData(), 0, 2);
     scratch.setPosition(0);
     if ((scratch.readUnsignedShort() & 0xFA) != 0) {
       return false;
     }
 
-    // Read data offset
+    // Read data offset  获取文件头大小，flv版本为1时为9字节
     input.peekFully(scratch.getData(), 0, 4);
     scratch.setPosition(0);
     int dataOffset = scratch.readInt();
 
     input.resetPeekPosition();
-    input.advancePeekPosition(dataOffset);
+    input.advancePeekPosition(dataOffset);  //跳过flv头部的9个字节
 
-    // Checking first "previous tag size" is set to 0
+    // Checking first "previous tag size" is set to 0   第一个TAG的上个TAG大小必定为0
     input.peekFully(scratch.getData(), 0, 4);
     scratch.setPosition(0);
 
@@ -151,7 +151,7 @@ public final class FlvExtractor implements Extractor {
     // Do nothing
   }
 
-  @Override
+  @Override  //读取流媒体数据
   public int read(ExtractorInput input, PositionHolder seekPosition) throws IOException {
     Assertions.checkStateNotNull(extractorOutput); // Asserts that init has been called.
     while (true) {
@@ -212,7 +212,7 @@ public final class FlvExtractor implements Extractor {
 
     // We need to skip any additional content in the FLV header, plus the 4 byte previous tag size.
     bytesToNextTagHeader = headerBuffer.readInt() - FLV_HEADER_SIZE + 4;
-    state = STATE_SKIPPING_TO_TAG_HEADER;
+    state = STATE_SKIPPING_TO_TAG_HEADER;  //接下来开始读tag
     return true;
   }
 
@@ -223,7 +223,7 @@ public final class FlvExtractor implements Extractor {
    * @throws IOException If an error occurred skipping data from the source.
    */
   private void skipToTagHeader(ExtractorInput input) throws IOException {
-    input.skipFully(bytesToNextTagHeader);
+    input.skipFully(bytesToNextTagHeader);  //跳过tag之间表示上个tag大小的4字节数据
     bytesToNextTagHeader = 0;
     state = STATE_READING_TAG_HEADER;
   }
@@ -293,7 +293,7 @@ public final class FlvExtractor implements Extractor {
     state = STATE_SKIPPING_TO_TAG_HEADER;
     return wasConsumed;
   }
-
+  //读取tag body
   private ParsableByteArray prepareTagData(ExtractorInput input) throws IOException {
     if (tagDataSize > tagData.capacity()) {
       tagData.reset(new byte[max(tagData.capacity() * 2, tagDataSize)], 0);

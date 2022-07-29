@@ -444,7 +444,7 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
     }
 
     opened = true;
-    transferStarted(dataSpec);
+    transferStarted(dataSpec);  //通知带宽测速模块开始下载流媒体数据了
 
     try {
       skipFully(bytesToSkip, dataSpec);
@@ -618,6 +618,7 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
     if (rangeHeader != null) {
       connection.setRequestProperty(HttpHeaders.RANGE, rangeHeader);
     }
+    Log.d("duruochen", "HttpURLConnection网络请求:" + url + "  请求范围:" + rangeHeader);
     if (userAgent != null) {
       connection.setRequestProperty(HttpHeaders.USER_AGENT, userAgent);
     }

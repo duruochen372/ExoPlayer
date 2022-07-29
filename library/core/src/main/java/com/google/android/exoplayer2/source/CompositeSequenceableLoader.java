@@ -18,6 +18,7 @@ package com.google.android.exoplayer2.source;
 import static java.lang.Math.min;
 
 import com.google.android.exoplayer2.C;
+import com.google.android.exoplayer2.util.Log;
 
 /** A {@link SequenceableLoader} that encapsulates multiple other {@link SequenceableLoader}s. */
 public class CompositeSequenceableLoader implements SequenceableLoader {
@@ -69,7 +70,8 @@ public class CompositeSequenceableLoader implements SequenceableLoader {
       if (nextLoadPositionUs == C.TIME_END_OF_SOURCE) {
         break;
       }
-      for (SequenceableLoader loader : loaders) {
+      Log.d("duruochen", "音频和视频loader分别进行下载");
+      for (SequenceableLoader loader : loaders) { //音频和视频loader分别进行下载
         long loaderNextLoadPositionUs = loader.getNextLoadPositionUs();
         boolean isLoaderBehind =
             loaderNextLoadPositionUs != C.TIME_END_OF_SOURCE

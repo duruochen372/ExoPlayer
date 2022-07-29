@@ -72,4 +72,14 @@ public final class BaseUrl {
   public int hashCode() {
     return Objects.hashCode(url, serviceLocation, priority, weight);
   }
+
+  @Override
+  public String toString() {
+    return "BaseUrl{" +
+        "url='" + url + '\'' +
+        ", serviceLocation='" + serviceLocation + '\'' +
+        ", priority=" + priority +
+        ", weight=" + weight +
+        '}';
+  }
 }

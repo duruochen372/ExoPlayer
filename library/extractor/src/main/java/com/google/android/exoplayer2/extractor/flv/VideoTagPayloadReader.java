@@ -19,6 +19,7 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.ParserException;
 import com.google.android.exoplayer2.extractor.TrackOutput;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.NalUnitUtil;
 import com.google.android.exoplayer2.util.ParsableByteArray;
@@ -66,7 +67,7 @@ import com.google.android.exoplayer2.video.AvcConfig;
     int frameType = (header >> 4) & 0x0F;
     int videoCodec = (header & 0x0F);
     // Support just H.264 encoded content.
-    if (videoCodec != VIDEO_CODEC_AVC) {
+    if (videoCodec != VIDEO_CODEC_AVC) {  //判断是否是h.264编码
       throw new UnsupportedFormatException("Video format not supported: " + videoCodec);
     }
     this.frameType = frameType;
@@ -75,12 +76,12 @@ import com.google.android.exoplayer2.video.AvcConfig;
 
   @Override
   protected boolean parsePayload(ParsableByteArray data, long timeUs) throws ParserException {
-    int packetType = data.readUnsignedByte();
+    int packetType = data.readUnsignedByte();  //视频的格式(CodecID)是AVC（H.264）的话，VideoTagHeader会多出4个字节的信息，AVCPacketType 和CompositionTime。
     int compositionTimeMs = data.readInt24();
 
     timeUs += compositionTimeMs * 1000L;
     // Parse avc sequence header in case this was not done before.
-    if (packetType == AVC_PACKET_TYPE_SEQUENCE_HEADER && !hasOutputFormat) {
+    if (packetType == AVC_PACKET_TYPE_SEQUENCE_HEADER) {
       ParsableByteArray videoSequence = new ParsableByteArray(new byte[data.bytesLeft()]);
       data.readBytes(videoSequence.getData(), 0, data.bytesLeft());
       AvcConfig avcConfig = AvcConfig.parse(videoSequence);

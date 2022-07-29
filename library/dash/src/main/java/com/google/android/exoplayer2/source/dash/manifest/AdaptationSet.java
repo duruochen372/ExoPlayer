@@ -69,4 +69,16 @@ public class AdaptationSet {
     this.essentialProperties = Collections.unmodifiableList(essentialProperties);
     this.supplementalProperties = Collections.unmodifiableList(supplementalProperties);
   }
+
+  @Override
+  public String toString() {
+    return "AdaptationSet{" +
+        "id=" + id +
+        ", type=" + type +
+        ", representations=" + representations +
+        ", accessibilityDescriptors=" + accessibilityDescriptors +
+        ", essentialProperties=" + essentialProperties +
+        ", supplementalProperties=" + supplementalProperties +
+        '}';
+  }
 }

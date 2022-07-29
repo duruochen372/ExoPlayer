@@ -29,6 +29,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.decoder.CryptoInfo;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
@@ -57,6 +58,7 @@ public final class SynchronousMediaCodecAdapter implements MediaCodecAdapter {
         TraceUtil.beginSection("startCodec");
         codec.start();
         TraceUtil.endSection();
+        Log.d("duruochen", "创建解码器:" + configuration.mediaFormat);
         return new SynchronousMediaCodecAdapter(codec);
       } catch (IOException | RuntimeException e) {
         if (codec != null) {
@@ -71,7 +73,7 @@ public final class SynchronousMediaCodecAdapter implements MediaCodecAdapter {
       checkNotNull(configuration.codecInfo);
       String codecName = configuration.codecInfo.name;
       TraceUtil.beginSection("createCodec:" + codecName);
-      MediaCodec mediaCodec = MediaCodec.createByCodecName(codecName);
+      MediaCodec mediaCodec = MediaCodec.createByCodecName(codecName); //创建解码器
       TraceUtil.endSection();
       return mediaCodec;
     }

@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.ParserException;
 import com.google.android.exoplayer2.util.CodecSpecificDataUtil;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.NalUnitUtil;
 import com.google.android.exoplayer2.util.NalUnitUtil.SpsData;
 import com.google.android.exoplayer2.util.ParsableByteArray;
@@ -37,18 +38,18 @@ public final class AvcConfig {
    * @throws ParserException If an error occurred parsing the data.
    */
   public static AvcConfig parse(ParsableByteArray data) throws ParserException {
-    try {
+    try {  //https://zhuanlan.zhihu.com/p/478278820  AVCDecoderConfigurationRecord结构解析
       data.skipBytes(4); // Skip to the AVCDecoderConfigurationRecord (defined in 14496-15)
-      int nalUnitLengthFieldLength = (data.readUnsignedByte() & 0x3) + 1;
+      int nalUnitLengthFieldLength = (data.readUnsignedByte() & 0x3) + 1;  //NALUnitLength的长度，一般为3
       if (nalUnitLengthFieldLength == 3) {
         throw new IllegalStateException();
       }
       List<byte[]> initializationData = new ArrayList<>();
-      int numSequenceParameterSets = data.readUnsignedByte() & 0x1F;
+      int numSequenceParameterSets = data.readUnsignedByte() & 0x1F;  //sps个数，一般为1
       for (int j = 0; j < numSequenceParameterSets; j++) {
-        initializationData.add(buildNalUnitForChild(data));
+        initializationData.add(buildNalUnitForChild(data)); //sps_size + sps
       }
-      int numPictureParameterSets = data.readUnsignedByte();
+      int numPictureParameterSets = data.readUnsignedByte(); //pps个数，一般为1
       for (int j = 0; j < numPictureParameterSets; j++) {
         initializationData.add(buildNalUnitForChild(data));
       }
@@ -59,11 +60,12 @@ public final class AvcConfig {
       @Nullable String codecs = null;
       if (numSequenceParameterSets > 0) {
         byte[] sps = initializationData.get(0);
-        SpsData spsData =
+        SpsData spsData =  //解析sps  拿到视频的宽高
             NalUnitUtil.parseSpsNalUnit(
                 initializationData.get(0), nalUnitLengthFieldLength, sps.length);
         width = spsData.width;
         height = spsData.height;
+        Log.d("duruochen", "解析sps后得到宽高  宽:" + width + "  高:" + height);
         pixelWidthHeightRatio = spsData.pixelWidthHeightRatio;
         codecs =
             CodecSpecificDataUtil.buildAvcCodecString(

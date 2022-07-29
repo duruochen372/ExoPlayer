@@ -27,6 +27,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -163,7 +164,7 @@ import java.lang.reflect.Method;
   private long lastPlayheadSampleTimeUs;
 
   @Nullable private Method getLatencyMethod;
-  private long latencyUs;
+  private long latencyUs; //音频数据从audiotrack到写入硬件，最终出声的一个延时
   private boolean hasData;
 
   private boolean isOutputPcm;
@@ -260,13 +261,19 @@ import java.lang.reflect.Method;
     long positionUs;
     AudioTimestampPoller audioTimestampPoller = Assertions.checkNotNull(this.audioTimestampPoller);
     boolean useGetTimestampMode = audioTimestampPoller.hasAdvancingTimestamp();
+    /* 通过getTimestamp来获取pts */
     if (useGetTimestampMode) {
       // Calculate the speed-adjusted position using the timestamp (which may be in the future).
+      /* 得到最新调用getTimestamp()接口时拿到的写入帧数 */
       long timestampPositionFrames = audioTimestampPoller.getTimestampPositionFrames();
+      /* 将总帧数转化为持续时间 */
       long timestampPositionUs = framesToDurationUs(timestampPositionFrames);
+      /* 计算当前系统时间与底层更新帧数时系统时间的差值 */
       long elapsedSinceTimestampUs = systemTimeUs - audioTimestampPoller.getTimestampSystemTimeUs();
+      /* 对差值时间做一个校准，基于倍速进行校准 */
       elapsedSinceTimestampUs =
           Util.getMediaDurationForPlayoutDuration(elapsedSinceTimestampUs, audioTrackPlaybackSpeed);
+      /* 得到最新的音频时间戳 */
       positionUs = timestampPositionUs + elapsedSinceTimestampUs;
     } else {
       if (playheadOffsetCount == 0) {
@@ -444,6 +451,7 @@ import java.lang.reflect.Method;
 
   private void maybeSampleSyncParams() {
     long playbackPositionUs = getPlaybackHeadPositionUs();
+//    Log.d("duruochen", "playbackPositionUs:" + playbackPositionUs);
     if (playbackPositionUs == 0) {
       // The AudioTrack hasn't output anything yet.
       return;

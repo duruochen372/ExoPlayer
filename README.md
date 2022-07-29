@@ -9,23 +9,16 @@ and extend, and can be updated through Play Store application updates.
 
 ## Documentation
 
-* The [developer guide][] provides a wealth of information.
-* The [class reference][] documents ExoPlayer classes.
-* The [release notes][] document the major changes in each release.
-* Follow our [developer blog][] to keep up to date with the latest ExoPlayer
+* The [developer guide] provides a wealth of information.
+* The [class reference] documents ExoPlayer classes.
+* The [release notes] document the major changes in each release.
+* Follow our [developer blog] to keep up to date with the latest ExoPlayer
   developments!
-
-[developer guide]: https://exoplayer.dev/guide.html
-[class reference]: https://exoplayer.dev/doc/reference
-[release notes]: https://github.com/google/ExoPlayer/blob/release-v2/RELEASENOTES.md
-[developer blog]: https://medium.com/google-exoplayer
 
 ## Using ExoPlayer
 
-ExoPlayer modules can be obtained from [the Google Maven repository][]. It's
+ExoPlayer modules can be obtained from [the Google Maven repository]. It's
 also possible to clone the repository and depend on the modules locally.
-
-[the Google Maven repository]: https://developer.android.com/studio/build/dependencies#google-maven
 
 ### From the Google Maven repository
 
@@ -59,7 +52,8 @@ ExoPlayer library is equivalent to adding dependencies on all of the library
 modules individually.
 
 * `exoplayer-core`: Core functionality (required).
-* `exoplayer-dash`: Support for DASH content.
+* `exoplayer-dash`: Support for [DASH content](https://zh.wikipedia.org/wiki/%E5%9F%BA%E4%BA%8EHTTP%E7%9A%84%E5%8A%A8%E6%80%81%E8%87%AA%E9%80%82%E5%BA%94%E6%B5%81).
+  [自适应流](https://zh.wikipedia.org/wiki/%E8%87%AA%E9%81%A9%E6%80%A7%E4%B8%B2%E6%B5%81)
 * `exoplayer-hls`: Support for HLS content.
 * `exoplayer-rtsp`: Support for RTSP content.
 * `exoplayer-smoothstreaming`: Support for SmoothStreaming content.
@@ -69,13 +63,10 @@ modules individually.
 In addition to library modules, ExoPlayer has extension modules that depend on
 external libraries to provide additional functionality. Some extensions are
 available from the Maven repository, whereas others must be built manually.
-Browse the [extensions directory][] and their individual READMEs for details.
+Browse the [extensions directory] and their individual READMEs for details.
 
 More information on the library and extension modules that are available can be
-found on the [Google Maven ExoPlayer page][].
-
-[extensions directory]: https://github.com/google/ExoPlayer/tree/release-v2/extensions/
-[Google Maven ExoPlayer page]: https://maven.google.com/web/index.html#com.google.android.exoplayer
+found on the [Google Maven ExoPlayer page].
 
 #### 2. Turn on Java 8 support
 
@@ -138,3 +129,11 @@ implementation project(':exoplayer-library-ui')
 
 To develop ExoPlayer using Android Studio, simply open the ExoPlayer project in
 the root directory of the repository.
+
+[developer guide]: https://exoplayer.dev/guide.html
+[class reference]: https://exoplayer.dev/doc/reference
+[release notes]: https://github.com/google/ExoPlayer/blob/release-v2/RELEASENOTES.md
+[developer blog]: https://medium.com/google-exoplayer
+[the Google Maven repository]: https://developer.android.com/studio/build/dependencies#google-maven
+[extensions directory]: https://github.com/google/ExoPlayer/tree/release-v2/extensions/
+[Google Maven ExoPlayer page]: https://maven.google.com/web/index.html#com.google.android.exoplayer

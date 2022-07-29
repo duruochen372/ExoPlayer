@@ -97,4 +97,15 @@ public class Period {
     }
     return C.INDEX_UNSET;
   }
+
+  @Override
+  public String toString() {
+    return "Period{" +
+        "id='" + id + '\'' +
+        ", startMs=" + startMs +
+        ", adaptationSets=" + adaptationSets +
+        ", eventStreams=" + eventStreams +
+        ", assetIdentifier=" + assetIdentifier +
+        '}';
+  }
 }

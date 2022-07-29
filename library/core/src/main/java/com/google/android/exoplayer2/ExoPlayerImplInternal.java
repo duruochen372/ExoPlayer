@@ -217,7 +217,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
   private boolean offloadSchedulingEnabled;
   private int enabledRendererCount;
   @Nullable private SeekPosition pendingInitialSeekPosition;
-  private long rendererPositionUs;
+  private long rendererPositionUs; //当前正在渲染的位置
   private int nextPendingMessageIndexHint;
   private boolean deliverPendingMessageAtStartPositionRequired;
   @Nullable private ExoPlaybackException pendingRecoverableRendererError;
@@ -282,7 +282,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
         new MediaSourceList(/* listener= */ this, analyticsCollector, eventHandler, playerId);
 
     // Note: The documentation for Process.THREAD_PRIORITY_AUDIO that states "Applications can
-    // not normally change to this priority" is incorrect.
+    // not normally change to this priority" is incorrect.   Process.THREAD_PRIORITY_AUDIO 的文档指出“应用程序无法正常更改为此优先级”是不正确的。
     internalPlaybackThread = new HandlerThread("ExoPlayer:Playback", Process.THREAD_PRIORITY_AUDIO);
     internalPlaybackThread.start();
     playbackLooper = internalPlaybackThread.getLooper();
@@ -480,7 +480,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     try {
       switch (msg.what) {
         case MSG_PREPARE:
-          prepareInternal();
+          prepareInternal();  //开始进行prepare
           break;
         case MSG_SET_PLAY_WHEN_READY:
           setPlayWhenReadyInternal(
@@ -515,9 +515,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
           stopInternal(/* forceResetRenderers= */ false, /* acknowledgeStop= */ true);
           break;
         case MSG_PERIOD_PREPARED:
-          handlePeriodPrepared((MediaPeriod) msg.obj);
+          handlePeriodPrepared((MediaPeriod) msg.obj);  //prepare完成
           break;
-        case MSG_SOURCE_CONTINUE_LOADING_REQUESTED:
+        case MSG_SOURCE_CONTINUE_LOADING_REQUESTED: //每次读完1MB流媒体数据会触发
           handleContinueLoadingRequested((MediaPeriod) msg.obj);
           break;
         case MSG_TRACK_SELECTION_INVALIDATED:
@@ -694,7 +694,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
   private void prepareInternal() {
     playbackInfoUpdate.incrementPendingOperationAcks(/* operationAcks= */ 1);
-    resetInternal(
+    resetInternal(  //播放器重置
         /* resetRenderers= */ false,
         /* resetPosition= */ false,
         /* releaseMediaSourceList= */ false,
@@ -866,9 +866,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
     }
   }
 
+  //启动渲染器
   private void startRenderers() throws ExoPlaybackException {
     isRebuffering = false;
-    mediaClock.start();
+    mediaClock.start(); //开启一个外部同步时钟
     for (Renderer renderer : renderers) {
       if (isRendererEnabled(renderer)) {
         renderer.start();
@@ -876,6 +877,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     }
   }
 
+  //停止渲染器
   private void stopRenderers() throws ExoPlaybackException {
     mediaClock.stop();
     for (Renderer renderer : renderers) {
@@ -890,6 +892,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
   }
 
   private void updatePlaybackPositions() throws ExoPlaybackException {
+//    Log.d("duruochen", "更新播放时间戳");
     MediaPeriodHolder playingPeriodHolder = queue.getPlayingPeriod();
     if (playingPeriodHolder == null) {
       return;
@@ -904,6 +907,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       resetRendererPosition(discontinuityPositionUs);
       // A MediaPeriod may report a discontinuity at the current playback position to ensure the
       // renderers are flushed. Only report the discontinuity externally if the position changed.
+      //MediaPeriod 可能会报告当前播放位置的不连续性，以确保渲染器被刷新。如果位置发生变化，仅在外部报告不连续性。
       if (discontinuityPositionUs != playbackInfo.positionUs) {
         playbackInfo =
             handlePositionDiscontinuity(
@@ -928,6 +932,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     playbackInfo.bufferedPositionUs = loadingPeriod.getBufferedPositionUs();
     playbackInfo.totalBufferedDurationUs = getTotalBufferedDurationUs();
 
+//    Log.d("duruochen","bufferedPositionUs=" + playbackInfo.bufferedPositionUs  + "   totalBufferedDurationUs=" + playbackInfo.totalBufferedDurationUs);
     // Adjust live playback speed to new position.
     if (playbackInfo.playWhenReady
         && playbackInfo.playbackState == Player.STATE_READY
@@ -961,7 +966,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
   private void doSomeWork() throws ExoPlaybackException, IOException {
     long operationStartTimeMs = clock.uptimeMillis();
-    updatePeriods();
+    updatePeriods(); //更新媒体片段MediaPeriod
 
     if (playbackInfo.playbackState == Player.STATE_IDLE
         || playbackInfo.playbackState == Player.STATE_ENDED) {
@@ -969,7 +974,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       handler.removeMessages(MSG_DO_SOME_WORK);
       return;
     }
-
+    //获取可播放的媒体片段
     @Nullable MediaPeriodHolder playingPeriodHolder = queue.getPlayingPeriod();
     if (playingPeriodHolder == null) {
       // We're still waiting until the playing period is available.
@@ -1086,6 +1091,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     boolean sleepingForOffload = false;
     if ((shouldPlayWhenReady() && playbackInfo.playbackState == Player.STATE_READY)
         || playbackInfo.playbackState == Player.STATE_BUFFERING) {
+      //10ms一次循环执行doSomeWork
       sleepingForOffload = !maybeScheduleWakeup(operationStartTimeMs, ACTIVE_INTERVAL_MS);
     } else if (enabledRendererCount != 0 && playbackInfo.playbackState != Player.STATE_ENDED) {
       scheduleNextWork(operationStartTimeMs, IDLE_INTERVAL_MS);
@@ -1974,7 +1980,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       // No periods available.
       return;
     }
-    maybeUpdateLoadingPeriod();
+    maybeUpdateLoadingPeriod();  //创建MediaPeriod，进行网络请求获取流媒体数据
     maybeUpdateReadingPeriod();
     maybeUpdateReadingRenderers();
     maybeUpdatePlayingPeriod();
@@ -1986,7 +1992,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
       @Nullable
       MediaPeriodInfo info = queue.getNextMediaPeriodInfo(rendererPositionUs, playbackInfo);
       if (info != null) {
-        MediaPeriodHolder mediaPeriodHolder =
+        Log.d("duruochen", "创建mediaPeriod并入队列");
+        MediaPeriodHolder mediaPeriodHolder =  //创建mediaPeriod并入队列
             queue.enqueueNextMediaPeriodHolder(
                 rendererCapabilities,
                 trackSelector,
@@ -1994,7 +2001,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 mediaSourceList,
                 info,
                 emptyTrackSelectorResult);
-        mediaPeriodHolder.mediaPeriod.prepare(this, info.startPositionUs);
+        mediaPeriodHolder.mediaPeriod.prepare(this, info.startPositionUs); //prepare    读取网络流媒体数据
         if (queue.getPlayingPeriod() == mediaPeriodHolder) {
           resetRendererPosition(info.startPositionUs);
         }
@@ -2007,7 +2014,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       shouldContinueLoading = isLoadingPossible();
       updateIsLoading();
     } else {
-      maybeContinueLoading();
+      maybeContinueLoading(); //dash媒体片段播放完了，进行下一次媒体片段请求 ？？？
     }
   }
 
@@ -2248,12 +2255,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
     MediaPeriodHolder loadingPeriodHolder = queue.getLoadingPeriod();
     loadingPeriodHolder.handlePrepared(
         mediaClock.getPlaybackParameters().speed, playbackInfo.timeline);
+    Log.d("duruochen", "轨道选择完毕");
     updateLoadControlTrackSelection(
         loadingPeriodHolder.getTrackGroups(), loadingPeriodHolder.getTrackSelectorResult());
     if (loadingPeriodHolder == queue.getPlayingPeriod()) {
       // This is the first prepared period, so update the position and the renderers.
       resetRendererPosition(loadingPeriodHolder.info.startPositionUs);
-      enableRenderers();
+      enableRenderers();  //prepared完成后，根据MediaPeriod来选择对应的解码渲染器
       playbackInfo =
           handlePositionDiscontinuity(
               playbackInfo.periodId,
@@ -2263,7 +2271,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
               /* reportDiscontinuity= */ false,
               /* ignored */ Player.DISCONTINUITY_REASON_INTERNAL);
     }
-    maybeContinueLoading();
+    maybeContinueLoading(); //开始取媒体数据
   }
 
   private void handleContinueLoadingRequested(MediaPeriod mediaPeriod) {
@@ -2310,11 +2318,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
     shouldContinueLoading = shouldContinueLoading();
     if (shouldContinueLoading) {
       queue.getLoadingPeriod().continueLoading(rendererPositionUs);
+    } else {
+//      Log.d("duruochen", "暂停下载");
     }
     updateIsLoading();
   }
 
-  private boolean shouldContinueLoading() {
+  private boolean shouldContinueLoading() { //判断是否要继续进行流媒体的下载
     if (!isLoadingPossible()) {
       return false;
     }
@@ -2425,7 +2435,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
   private void enableRenderers() throws ExoPlaybackException {
     enableRenderers(/* rendererWasEnabledFlags= */ new boolean[renderers.length]);
   }
-
+  //判断选择哪些render解码渲染器应该启动
   private void enableRenderers(boolean[] rendererWasEnabledFlags) throws ExoPlaybackException {
     MediaPeriodHolder readingMediaPeriod = queue.getReadingPeriod();
     TrackSelectorResult trackSelectorResult = readingMediaPeriod.getTrackSelectorResult();

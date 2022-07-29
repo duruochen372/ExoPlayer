@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Shuffled order of indices.
+ * Shuffled order of indices.   索引的拖拽顺序
  *
  * <p>The shuffle order must be immutable to ensure thread safety.
  */

@@ -74,4 +74,15 @@ public final class ProgramInformation {
     result = 31 * result + (lang != null ? lang.hashCode() : 0);
     return result;
   }
+
+  @Override
+  public String toString() {
+    return "ProgramInformation{" +
+        "title='" + title + '\'' +
+        ", source='" + source + '\'' +
+        ", copyright='" + copyright + '\'' +
+        ", moreInformationURL='" + moreInformationURL + '\'' +
+        ", lang='" + lang + '\'' +
+        '}';
+  }
 }

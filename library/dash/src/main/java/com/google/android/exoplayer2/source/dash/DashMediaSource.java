@@ -429,9 +429,10 @@ public final class DashMediaSource extends BaseMediaSource {
       processManifest(false);
     } else {
       dataSource = manifestDataSourceFactory.createDataSource();
-      loader = new Loader("DashMediaSource");
+      loader = new Loader("DashMediaSource"); //创建loader
       handler = Util.createHandlerForCurrentLooper();
-      startLoadingManifest();
+      startLoadingManifest(); //请求mdp文件并解析
+      Log.d("duruochen", "开始 loading  请求mdp文件并解析");
     }
   }
 
@@ -516,7 +517,7 @@ public final class DashMediaSource extends BaseMediaSource {
   }
 
   // Loadable callbacks.
-
+   //mpd解析完毕
   /* package */ void onManifestLoadCompleted(
       ParsingLoadable<DashManifest> loadable, long elapsedRealtimeMs, long loadDurationMs) {
     LoadEventInfo loadEventInfo =
@@ -528,6 +529,7 @@ public final class DashMediaSource extends BaseMediaSource {
             elapsedRealtimeMs,
             loadDurationMs,
             loadable.bytesLoaded());
+    Log.d("duruochen", "onManifestLoadCompleted  mpd解析完毕");
     loadErrorHandlingPolicy.onLoadTaskConcluded(loadable.loadTaskId);
     manifestEventDispatcher.loadCompleted(loadEventInfo, loadable.type);
     DashManifest newManifest = loadable.getResult();
@@ -540,7 +542,7 @@ public final class DashMediaSource extends BaseMediaSource {
       removedPeriodCount++;
     }
 
-    if (newManifest.dynamic) {
+    if (newManifest.dynamic) {//直播
       boolean isManifestStale = false;
       if (oldPeriodCount - removedPeriodCount > newManifest.getPeriodCount()) {
         // After discarding old periods, we should never have more periods than listed in the new
@@ -776,7 +778,7 @@ public final class DashMediaSource extends BaseMediaSource {
     Period firstPeriod = manifest.getPeriod(0);
     int lastPeriodIndex = manifest.getPeriodCount() - 1;
     Period lastPeriod = manifest.getPeriod(lastPeriodIndex);
-    long lastPeriodDurationUs = manifest.getPeriodDurationUs(lastPeriodIndex);
+    long lastPeriodDurationUs = manifest.getPeriodDurationUs(lastPeriodIndex); //获取解析到的视频时长
     long nowUnixTimeUs = Util.msToUs(Util.getNowUnixTimeMs(elapsedRealtimeOffsetMs));
     long windowStartTimeInManifestUs =
         getAvailableStartTimeInManifestUs(
@@ -814,7 +816,7 @@ public final class DashMediaSource extends BaseMediaSource {
       }
     }
     long offsetInFirstPeriodUs = windowStartTimeInManifestUs - Util.msToUs(firstPeriod.startMs);
-    DashTimeline timeline =
+    DashTimeline timeline = //根据解析到的mpd更新Timeline
         new DashTimeline(
             manifest.availabilityStartTimeMs,
             windowStartUnixTimeMs,
@@ -826,8 +828,8 @@ public final class DashMediaSource extends BaseMediaSource {
             manifest,
             mediaItem,
             manifest.dynamic ? liveConfiguration : null);
-    refreshSourceInfo(timeline);
-
+    Log.d("duruochen", "根据解析后的mpd更新资源信息");
+    refreshSourceInfo(timeline);    // 更新资源信息
     if (!sideloadedManifest) {
       // Remove any pending simulated refresh.
       handler.removeCallbacks(simulateManifestRefreshRunnable);
@@ -972,10 +974,11 @@ public final class DashMediaSource extends BaseMediaSource {
       manifestUri = this.manifestUri;
     }
     manifestLoadPending = false;
-    startLoading(
+    startLoading( //开启ParsingLoadable.load加载xml文件并解析
         new ParsingLoadable<>(dataSource, manifestUri, C.DATA_TYPE_MANIFEST, manifestParser),
         manifestCallback,
         loadErrorHandlingPolicy.getMinimumLoadableRetryCount(C.DATA_TYPE_MANIFEST));
+    Log.d("duruochen", "开启ParsingLoadable.load加载xml文件并解析");
   }
 
   private long getManifestLoadRetryDelayMillis() {

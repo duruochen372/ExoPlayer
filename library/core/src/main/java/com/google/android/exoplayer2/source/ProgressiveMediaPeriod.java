@@ -54,6 +54,7 @@ import com.google.android.exoplayer2.upstream.Loader.Loadable;
 import com.google.android.exoplayer2.upstream.StatsDataSource;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.ConditionVariable;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.ParsableByteArray;
 import com.google.android.exoplayer2.util.Util;
@@ -708,7 +709,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
   }
 
   // Internal methods.
-
+  //根据媒体轨道来准备samplequeue
   private TrackOutput prepareTrackOutput(TrackId id) {
     int trackCount = sampleQueues.length;
     for (int i = 0; i < trackCount; i++) {
@@ -753,7 +754,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     int trackCount = sampleQueues.length;
     TrackGroup[] trackArray = new TrackGroup[trackCount];
     boolean[] trackIsAudioVideoFlags = new boolean[trackCount];
-    for (int i = 0; i < trackCount; i++) {
+    for (int i = 0; i < trackCount; i++) { //根据媒体轨道创建trackGroup
       Format trackFormat = Assertions.checkNotNull(sampleQueues[i].getUpstreamFormat());
       @Nullable String mimeType = trackFormat.sampleMimeType;
       boolean isAudio = MimeTypes.isAudio(mimeType);
@@ -815,7 +816,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     }
     extractedSamplesCountAtStartOfLoad = getExtractedSamplesCount();
     long elapsedRealtimeMs =
-        loader.startLoading(
+        loader.startLoading(   //load
             loadable, this, loadErrorHandlingPolicy.getMinimumLoadableRetryCount(dataType));
     DataSpec dataSpec = loadable.dataSpec;
     mediaSourceEventDispatcher.loadStarted(
@@ -1006,7 +1007,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
         try {
           long position = positionHolder.position;
           dataSpec = buildDataSpec(position);
-          length = dataSource.open(dataSpec);
+          length = dataSource.open(dataSpec);  //进行网络请求
           if (length != C.LENGTH_UNSET) {
             length += position;
           }
@@ -1017,7 +1018,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
             icyTrackOutput = icyTrack();
             icyTrackOutput.format(ICY_FORMAT);
           }
-          progressiveMediaExtractor.init(
+          progressiveMediaExtractor.init(   //创建Extractor
               extractorDataSource,
               uri,
               dataSource.getResponseHeaders(),
@@ -1039,9 +1040,10 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
             } catch (InterruptedException e) {
               throw new InterruptedIOException();
             }
-            result = progressiveMediaExtractor.read(positionHolder);
+            result = progressiveMediaExtractor.read(positionHolder);  //读取流媒体数据
             long currentInputPosition = progressiveMediaExtractor.getCurrentInputPosition();
-            if (currentInputPosition > position + continueLoadingCheckIntervalBytes) {
+            if (currentInputPosition > position + continueLoadingCheckIntervalBytes) {  //每次读1MB
+//              Log.d("duruochen666", "读完了1MB:");
               position = currentInputPosition;
               loadCondition.close();
               handler.post(onContinueLoadingRequestedRunnable);

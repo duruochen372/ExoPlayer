@@ -255,7 +255,7 @@ public final class DefaultDataSource implements DataSource {
       dataSource = baseDataSource;
     }
     // Open the source and return.
-    return dataSource.open(dataSpec);
+    return dataSource.open(dataSpec); //DefaultHttpDataSource
   }
 
   @Override

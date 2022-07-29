@@ -63,4 +63,15 @@ public final class ServiceDescriptionElement {
     this.minPlaybackSpeed = minPlaybackSpeed;
     this.maxPlaybackSpeed = maxPlaybackSpeed;
   }
+
+  @Override
+  public String toString() {
+    return "ServiceDescriptionElement{" +
+        "targetOffsetMs=" + targetOffsetMs +
+        ", minOffsetMs=" + minOffsetMs +
+        ", maxOffsetMs=" + maxOffsetMs +
+        ", minPlaybackSpeed=" + minPlaybackSpeed +
+        ", maxPlaybackSpeed=" + maxPlaybackSpeed +
+        '}';
+  }
 }

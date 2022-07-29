@@ -22,6 +22,7 @@ import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.upstream.BandwidthMeter.EventListener.EventDispatcher;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Clock;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.NetworkTypeObserver;
 import com.google.android.exoplayer2.util.Util;
 import com.google.common.base.Ascii;
@@ -264,7 +265,7 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
   }
 
   private static final int ELAPSED_MILLIS_FOR_ESTIMATE = 2000;
-  private static final int BYTES_TRANSFERRED_FOR_ESTIMATE = 512 * 1024;
+  private static final int BYTES_TRANSFERRED_FOR_ESTIMATE = 512 * 1024; //512KB
 
   private final ImmutableMap<Integer, Long> initialBitrateEstimates;
   private final EventDispatcher eventDispatcher;
@@ -359,9 +360,10 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
     // Do nothing.
   }
 
-  @Override
+  @Override  //DefaultHttpDataSource.open
   public synchronized void onTransferStart(
       DataSource source, DataSpec dataSpec, boolean isNetwork) {
+    Log.d("duruochen", "DefaultBandwidthMeter开始传输");
     if (!isTransferAtFullNetworkSpeed(dataSpec, isNetwork)) {
       return;
     }
@@ -382,6 +384,7 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
 
   @Override
   public synchronized void onTransferEnd(DataSource source, DataSpec dataSpec, boolean isNetwork) {
+    Log.d("duruochen", "DefaultBandwidthMeter传输结束");
     if (!isTransferAtFullNetworkSpeed(dataSpec, isNetwork)) {
       return;
     }
@@ -391,11 +394,15 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
     totalElapsedTimeMs += sampleElapsedTimeMs;
     totalBytesTransferred += sampleBytesTransferred;
     if (sampleElapsedTimeMs > 0) {
-      float bitsPerSecond = (sampleBytesTransferred * 8000f) / sampleElapsedTimeMs;
-      slidingPercentile.addSample((int) Math.sqrt(sampleBytesTransferred), bitsPerSecond);
+      float bitsPerSecond = (sampleBytesTransferred * 8000f) / sampleElapsedTimeMs;  //下载速度
+      Log.d("duruochen", "当前sample下载速度:" + (bitsPerSecond / (8 * 1024)) + "KB/s" + "  总字节:" + totalBytesTransferred);
+      slidingPercentile.addSample((int) Math.sqrt(sampleBytesTransferred), bitsPerSecond); //增加样本数据，其内部可估算出一个当前带宽
       if (totalElapsedTimeMs >= ELAPSED_MILLIS_FOR_ESTIMATE
           || totalBytesTransferred >= BYTES_TRANSFERRED_FOR_ESTIMATE) {
-        bitrateEstimate = (long) slidingPercentile.getPercentile(0.5f);
+        bitrateEstimate = (long) slidingPercentile.getPercentile(0.5f);//取权重值为0.5的带宽作为预估的带宽（下载过程中的中间位置的带宽）
+        Log.d("duruochen", "预估带宽:bitrateEstimate=" + bitrateEstimate + "         " + ((float)bitrateEstimate / (8 * 1024)) + "KB/s" + "   totalElapsedTimeMs=" + totalElapsedTimeMs);
+      } else {
+        Log.d("duruochen", "样本量太少:totalBytesTransferred=" + (totalBytesTransferred /1024) + "KB" + "   totalElapsedTimeMs=" + totalElapsedTimeMs);
       }
       maybeNotifyBandwidthSample(sampleElapsedTimeMs, sampleBytesTransferred, bitrateEstimate);
       sampleStartTimeMs = nowMs;
@@ -456,6 +463,7 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
     if (initialBitrateEstimate == null) {
       initialBitrateEstimate = DEFAULT_INITIAL_BITRATE_ESTIMATE;
     }
+    Log.d("duruochen", "获取初始的预估带宽:" + initialBitrateEstimate + "  networkType:" + networkType);
     return initialBitrateEstimate;
   }
 
@@ -468,6 +476,7 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
    * of indices for [Wifi, 2G, 3G, 4G, 5G_NSA, 5G_SA].
    */
   private static int[] getInitialBitrateCountryGroupAssignment(String country) {
+    Log.d("duruochen", "国家:" + country);
     switch (country) {
       case "AE":
         return new int[] {1, 4, 4, 4, 3, 2};

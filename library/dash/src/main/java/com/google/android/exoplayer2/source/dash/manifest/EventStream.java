@@ -16,6 +16,7 @@
 package com.google.android.exoplayer2.source.dash.manifest;
 
 import com.google.android.exoplayer2.metadata.emsg.EventMessage;
+import java.util.Arrays;
 
 /** A DASH in-MPD EventStream element, as defined by ISO/IEC 23009-1, 2nd edition, section 5.10. */
 public final class EventStream {
@@ -51,5 +52,16 @@ public final class EventStream {
   /** A constructed id of this {@link EventStream}. Equal to {@code schemeIdUri + "/" + value}. */
   public String id() {
     return schemeIdUri + "/" + value;
+  }
+
+  @Override
+  public String toString() {
+    return "EventStream{" +
+        "events=" + Arrays.toString(events) +
+        ", presentationTimesUs=" + Arrays.toString(presentationTimesUs) +
+        ", schemeIdUri='" + schemeIdUri + '\'' +
+        ", value='" + value + '\'' +
+        ", timescale=" + timescale +
+        '}';
   }
 }

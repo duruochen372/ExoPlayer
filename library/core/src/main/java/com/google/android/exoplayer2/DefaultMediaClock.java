@@ -18,6 +18,7 @@ package com.google.android.exoplayer2;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Clock;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MediaClock;
 import com.google.android.exoplayer2.util.StandaloneMediaClock;
 
@@ -96,6 +97,7 @@ import com.google.android.exoplayer2.util.StandaloneMediaClock;
         throw ExoPlaybackException.createForUnexpected(
             new IllegalStateException("Multiple renderer media clocks enabled."));
       }
+      Log.d("duruochen", "设置音视频同步时钟:" + renderer);
       this.rendererClock = rendererMediaClock;
       this.rendererClockSource = renderer;
       rendererClock.setPlaybackParameters(standaloneClock.getPlaybackParameters());
@@ -157,6 +159,7 @@ import com.google.android.exoplayer2.util.StandaloneMediaClock;
       if (standaloneClockIsStarted) {
         standaloneClock.start();
       }
+//      Log.d("duruochen","syncClocks 音频时钟还没准备好");
       return;
     }
     // We are either already using the renderer clock or switching from the standalone to the
@@ -176,6 +179,7 @@ import com.google.android.exoplayer2.util.StandaloneMediaClock;
     }
     // Continuously sync stand-alone clock to renderer clock so that it can take over if needed.
     standaloneClock.resetPosition(rendererClockPositionUs);
+//    Log.d("duruochen", "标准时钟使用音频时钟来同步");
     PlaybackParameters playbackParameters = rendererClock.getPlaybackParameters();
     if (!playbackParameters.equals(standaloneClock.getPlaybackParameters())) {
       standaloneClock.setPlaybackParameters(playbackParameters);

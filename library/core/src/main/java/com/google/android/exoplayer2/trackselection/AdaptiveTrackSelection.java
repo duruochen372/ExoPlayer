@@ -429,7 +429,7 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
     this.playbackSpeed = playbackSpeed;
   }
 
-  @Override
+  @Override  //确定下次要播放的轨道
   public void updateSelectedTrack(
       long playbackPositionUs,
       long bufferedDurationUs,
@@ -443,6 +443,7 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
     if (reason == C.SELECTION_REASON_UNKNOWN) {
       reason = C.SELECTION_REASON_INITIAL;
       selectedIndex = determineIdealSelectedIndex(nowMs, chunkDurationUs);
+      Log.d("duruochen", "第一次根据预估的带宽选择 index=" + selectedIndex);
       return;
     }
 
@@ -477,6 +478,7 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
     reason =
         newSelectedIndex == previousSelectedIndex ? previousReason : C.SELECTION_REASON_ADAPTIVE;
     selectedIndex = newSelectedIndex;
+    Log.d("duruochen", "选择的轨道 index=" + selectedIndex);
   }
 
   @Override
@@ -587,15 +589,17 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
    *     if unknown.
    */
   private int determineIdealSelectedIndex(long nowMs, long chunkDurationUs) {
-    long effectiveBitrate = getAllocatedBandwidth(chunkDurationUs);
+    long effectiveBitrate = getAllocatedBandwidth(chunkDurationUs); //获取预估的可用带宽
+    Log.d("duruochen", "获取预估的可用带宽:effectiveBitrate=" + effectiveBitrate);
     int lowestBitrateAllowedIndex = 0;
     for (int i = 0; i < length; i++) {
       if (nowMs == Long.MIN_VALUE || !isBlacklisted(i, nowMs)) {
         Format format = getFormat(i);
-        if (canSelectFormat(format, format.bitrate, effectiveBitrate)) {
+        if (canSelectFormat(format, format.bitrate, effectiveBitrate)) { //根据预估的带宽去选择下一次拉哪种码率的流
+          Log.d("duruochen", "根据带宽选择了index=" + i  + "    该轨道所需带宽:" + format.bitrate + "  可用带宽:effectiveBitrate=" + effectiveBitrate);
           return i;
         } else {
-          lowestBitrateAllowedIndex = i;
+          lowestBitrateAllowedIndex = i; //如果所以码率的流当前带宽都无法满足时，选择最小码率的流
         }
       }
     }
@@ -659,16 +663,17 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
 
   private long getAllocatedBandwidth(long chunkDurationUs) {
     long totalBandwidth = getTotalAllocatableBandwidth(chunkDurationUs);
-    if (adaptationCheckpoints.isEmpty()) {
+    if (adaptationCheckpoints.isEmpty()) { //判断有没有检查点（记录了各条音视频码率的组合）
+      Log.d("duruochen", "获取分配的带宽大小:" + totalBandwidth);
       return totalBandwidth;
     }
     int nextIndex = 1;
     while (nextIndex < adaptationCheckpoints.size() - 1
         && adaptationCheckpoints.get(nextIndex).totalBandwidth < totalBandwidth) {
-      nextIndex++;
+      nextIndex++;  //找到当前带宽最接近的一个检查点
     }
-    AdaptationCheckpoint previous = adaptationCheckpoints.get(nextIndex - 1);
-    AdaptationCheckpoint next = adaptationCheckpoints.get(nextIndex);
+    AdaptationCheckpoint previous = adaptationCheckpoints.get(nextIndex - 1); //比当前带宽小一点的检查点
+    AdaptationCheckpoint next = adaptationCheckpoints.get(nextIndex);//比当前带宽大一点的检查点
     float fractionBetweenCheckpoints =
         (float) (totalBandwidth - previous.totalBandwidth)
             / (next.totalBandwidth - previous.totalBandwidth);
@@ -678,14 +683,18 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
   }
 
   private long getTotalAllocatableBandwidth(long chunkDurationUs) {
-    long cautiousBandwidthEstimate =
+    long cautiousBandwidthEstimate = //偏谨慎的带宽估计 （0.7*实际带宽）
         (long) (bandwidthMeter.getBitrateEstimate() * bandwidthFraction);
+    Log.d("duruochen", "上次下载的实际带宽:" + bandwidthMeter.getBitrateEstimate());
     long timeToFirstByteEstimateUs = bandwidthMeter.getTimeToFirstByteEstimateUs();
     if (timeToFirstByteEstimateUs == C.TIME_UNSET || chunkDurationUs == C.TIME_UNSET) {
+      Log.d("duruochen", "获取总分配带宽大小1:" + (long) (cautiousBandwidthEstimate / playbackSpeed));
       return (long) (cautiousBandwidthEstimate / playbackSpeed);
     }
     float availableTimeToLoadUs =
         max(chunkDurationUs / playbackSpeed - timeToFirstByteEstimateUs, 0);
+    Log.d("duruochen", "可用用来下载的时间:availableTimeToLoadUs=" + availableTimeToLoadUs);
+    Log.d("duruochen", "获取总分配带宽大小2:" + (long) (cautiousBandwidthEstimate * availableTimeToLoadUs / chunkDurationUs));
     return (long) (cautiousBandwidthEstimate * availableTimeToLoadUs / chunkDurationUs);
   }
 
@@ -810,6 +819,7 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
       if (builder == null) {
         continue;
       }
+      Log.d("duruochen", "addCheckpoint:totalBitrate=" + totalBitrate + "   checkpointBitrates=" + checkpointBitrates[i]);
       builder.add(
           new AdaptationCheckpoint(
               /* totalBandwidth= */ totalBitrate, /* allocatedBandwidth= */ checkpointBitrates[i]));

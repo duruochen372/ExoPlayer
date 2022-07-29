@@ -60,4 +60,13 @@ public final class Descriptor {
     result = 31 * result + (id != null ? id.hashCode() : 0);
     return result;
   }
+
+  @Override
+  public String toString() {
+    return "Descriptor{" +
+        "schemeIdUri='" + schemeIdUri + '\'' +
+        ", value='" + value + '\'' +
+        ", id='" + id + '\'' +
+        '}';
+  }
 }

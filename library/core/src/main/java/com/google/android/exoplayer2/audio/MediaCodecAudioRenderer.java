@@ -700,6 +700,8 @@ public class MediaCodecAudioRenderer extends MediaCodecRenderer implements Media
 
     boolean fullyConsumed;
     try {
+      //消费音频数据
+//      Log.d("duruochen", "消费音频数据");
       fullyConsumed = audioSink.handleBuffer(buffer, bufferPresentationTimeUs, sampleCount);
     } catch (InitializationException e) {
       throw createRendererException(
@@ -862,6 +864,7 @@ public class MediaCodecAudioRenderer extends MediaCodecRenderer implements Media
 
   private void updateCurrentPosition() {
     long newCurrentPositionUs = audioSink.getCurrentPositionUs(isEnded());
+//    Log.d("duruochen", "updateCurrentPosition  newCurrentPositionUs=" + newCurrentPositionUs);
     if (newCurrentPositionUs != AudioSink.CURRENT_POSITION_NOT_SET) {
       currentPositionUs =
           allowPositionDiscontinuity

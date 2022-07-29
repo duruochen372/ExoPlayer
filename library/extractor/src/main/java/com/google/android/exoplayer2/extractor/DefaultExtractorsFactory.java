@@ -307,7 +307,7 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
     if (responseHeadersInferredFileType != FileTypes.UNKNOWN) {
       addExtractorsForFileType(responseHeadersInferredFileType, extractors);
     }
-
+    //通过后缀判断文件类型
     @FileTypes.Type int uriInferredFileType = inferFileTypeFromUri(uri);
     if (uriInferredFileType != FileTypes.UNKNOWN
         && uriInferredFileType != responseHeadersInferredFileType) {

@@ -231,6 +231,7 @@ import java.util.concurrent.TimeoutException;
       componentListener = new ComponentListener();
       frameMetadataListener = new FrameMetadataListener();
       Handler eventHandler = new Handler(builder.looper);
+      //创建解码渲染器
       renderers =
           builder
               .renderersFactorySupplier
@@ -304,7 +305,7 @@ import java.util.concurrent.TimeoutException;
       playbackInfoUpdateListener =
           playbackInfoUpdate ->
               playbackInfoUpdateHandler.post(() -> handlePlaybackInfo(playbackInfoUpdate));
-      playbackInfo = PlaybackInfo.createDummy(emptyTrackSelectorResult);
+      playbackInfo = PlaybackInfo.createDummy(emptyTrackSelectorResult); //创建播放信息
       analyticsCollector.setPlayer(this.wrappingPlayer, applicationLooper);
       PlayerId playerId = Util.SDK_INT < 31 ? new PlayerId() : Api31.createPlayerId();
       internalPlayer =
@@ -492,7 +493,7 @@ import java.util.concurrent.TimeoutException;
     int playerCommand = audioFocusManager.updateAudioFocus(playWhenReady, Player.STATE_BUFFERING);
     updatePlayWhenReady(
         playWhenReady, playerCommand, getPlayWhenReadyChangeReason(playWhenReady, playerCommand));
-    if (playbackInfo.playbackState != Player.STATE_IDLE) {
+    if (playbackInfo.playbackState != Player.STATE_IDLE) { //非空闲状态直接返回
       return;
     }
     PlaybackInfo playbackInfo = this.playbackInfo.copyWithPlaybackError(null);
@@ -2151,11 +2152,12 @@ import java.util.concurrent.TimeoutException;
       }
     }
     newPlaybackInfo = newPlaybackInfo.copyWithPlaybackState(maskingPlaybackState);
-    internalPlayer.setMediaSources(
+    internalPlayer.setMediaSources( //给内部播放器设置播放源
         holders, startWindowIndex, Util.msToUs(startPositionMs), shuffleOrder);
     boolean positionDiscontinuity =
         !playbackInfo.periodId.periodUid.equals(newPlaybackInfo.periodId.periodUid)
             && !playbackInfo.timeline.isEmpty();
+    //更新播放源
     updatePlaybackInfo(
         newPlaybackInfo,
         /* timelineChangeReason= */ TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED,

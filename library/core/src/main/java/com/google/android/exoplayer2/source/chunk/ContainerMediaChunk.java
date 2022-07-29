@@ -25,6 +25,7 @@ import com.google.android.exoplayer2.source.chunk.ChunkExtractor.TrackOutputProv
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSourceUtil;
 import com.google.android.exoplayer2.upstream.DataSpec;
+import com.google.android.exoplayer2.util.Log;
 import java.io.IOException;
 
 /** A {@link BaseMediaChunk} that uses an {@link Extractor} to decode sample data. */
@@ -127,6 +128,7 @@ public class ContainerMediaChunk extends BaseMediaChunk {
         while (!loadCanceled && chunkExtractor.read(input)) {}
       } finally {
         nextLoadPosition = input.getPosition() - dataSpec.position;
+        Log.d("duruochen", "本次媒体块的数据已经下载完成，下次要读的起始位置为:" + nextLoadPosition);
       }
     } finally {
       DataSourceUtil.closeQuietly(dataSource);

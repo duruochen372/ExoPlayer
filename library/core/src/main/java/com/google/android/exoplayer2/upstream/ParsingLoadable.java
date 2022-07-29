@@ -171,9 +171,9 @@ public final class ParsingLoadable<T> implements Loadable {
     dataSource.resetBytesRead();
     DataSourceInputStream inputStream = new DataSourceInputStream(dataSource, dataSpec);
     try {
-      inputStream.open();
+      inputStream.open(); //进行网络请求
       Uri dataSourceUri = Assertions.checkNotNull(dataSource.getUri());
-      result = parser.parse(dataSourceUri, inputStream);
+      result = parser.parse(dataSourceUri, inputStream); //解析mpd
     } finally {
       Util.closeQuietly(inputStream);
     }

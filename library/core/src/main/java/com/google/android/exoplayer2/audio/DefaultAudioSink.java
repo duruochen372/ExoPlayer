@@ -680,8 +680,10 @@ public final class DefaultAudioSink implements AudioSink {
     if (!isAudioTrackInitialized() || startMediaTimeUsNeedsInit) {
       return CURRENT_POSITION_NOT_SET;
     }
+    //从AudioTrack获取pts
     long positionUs = audioTrackPositionTracker.getCurrentPositionUs(sourceEnded);
     positionUs = min(positionUs, configuration.framesToDurationUs(getWrittenFrames()));
+//    Log.d("duruochen", "getCurrentPositionUs  positionUs=" + positionUs);
     return applySkipping(applyMediaPositionParameters(positionUs));
   }
 
@@ -1009,7 +1011,7 @@ public final class DefaultAudioSink implements AudioSink {
       inputBuffer = buffer;
       inputBufferAccessUnitCount = encodedAccessUnitCount;
     }
-
+    //播放音频数据
     processBuffers(presentationTimeUs);
 
     if (!inputBuffer.hasRemaining()) {
@@ -1904,6 +1906,8 @@ public final class DefaultAudioSink implements AudioSink {
 
   @RequiresApi(21)
   private static int writeNonBlockingV21(AudioTrack audioTrack, ByteBuffer buffer, int size) {
+    //播放PCM音频数据
+//    Log.d("duruochen", "播放PCM音频数据1");
     return audioTrack.write(buffer, size, AudioTrack.WRITE_NON_BLOCKING);
   }
 

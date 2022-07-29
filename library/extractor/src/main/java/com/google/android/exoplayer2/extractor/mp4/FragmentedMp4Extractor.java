@@ -470,7 +470,9 @@ public class FragmentedMp4Extractor implements Extractor {
     if (!containerAtoms.isEmpty()) {
       containerAtoms.peek().add(leaf);
     } else if (leaf.type == Atom.TYPE_sidx) {
+      //sidx（segment index）记录了各个moof+mdat组成的segment的精确byte position，所以我们只需要Load一个很小的sidx box就能方便的实现码率切换了。
       Pair<Long, ChunkIndex> result = parseSidx(leaf.data, inputPosition);
+      Log.d("duruochen", "解析完成分块信息:" + result);
       segmentIndexEarliestPresentationTimeUs = result.first;
       extractorOutput.seekMap(result.second);
       haveOutputSeekMap = true;
@@ -481,6 +483,7 @@ public class FragmentedMp4Extractor implements Extractor {
 
   private void onContainerAtomRead(ContainerAtom container) throws ParserException {
     if (container.type == Atom.TYPE_moov) {
+      Log.d("duruochen", "解析到moov");
       onMoovContainerAtomRead(container);
     } else if (container.type == Atom.TYPE_moof) {
       onMoofContainerAtomRead(container);
@@ -526,6 +529,7 @@ public class FragmentedMp4Extractor implements Extractor {
       for (int i = 0; i < trackCount; i++) {
         TrackSampleTable sampleTable = sampleTables.get(i);
         Track track = sampleTable.track;
+        Log.d("duruochen", "解析完成moov，得到format信息:" + track.toString());
         TrackBundle trackBundle =
             new TrackBundle(
                 extractorOutput.track(i, track.type),
@@ -661,6 +665,7 @@ public class FragmentedMp4Extractor implements Extractor {
     // Output the sample data.
     for (TrackOutput emsgTrackOutput : emsgTrackOutputs) {
       encodedEventMessage.setPosition(0);
+      Log.d("duruochen", "sampleData1");
       emsgTrackOutput.sampleData(encodedEventMessage, sampleSize);
     }
 
@@ -1314,7 +1319,7 @@ public class FragmentedMp4Extractor implements Extractor {
    *     indicates that there are no samples left to read in the current mdat.
    * @throws IOException If an error occurs reading from the input.
    */
-  private boolean readSample(ExtractorInput input) throws IOException {
+  private boolean readSample(ExtractorInput input) throws IOException { //读取媒体数据
     @Nullable TrackBundle trackBundle = currentTrackBundle;
     if (trackBundle == null) {
       trackBundle = getNextTrackBundle(trackBundles);
@@ -1366,6 +1371,7 @@ public class FragmentedMp4Extractor implements Extractor {
         sampleBytesWritten =
             trackBundle.outputSampleEncryptionData(sampleSize, Ac4Util.SAMPLE_HEADER_SIZE);
         Ac4Util.getAc4SampleHeader(sampleSize, scratch);
+        Log.d("duruochen", "将读取到的音频数据传入SampleQueue:" + this);
         trackBundle.output.sampleData(scratch, Ac4Util.SAMPLE_HEADER_SIZE);
         sampleBytesWritten += Ac4Util.SAMPLE_HEADER_SIZE;
       } else {
@@ -1408,6 +1414,8 @@ public class FragmentedMp4Extractor implements Extractor {
           sampleCurrentNalBytesRemaining = nalLengthInt - 1;
           // Write a start code for the current NAL unit.
           nalStartCode.setPosition(0);
+//          Log.d("duruochen", "sampleData2:视频" + trackBundle.output);
+
           output.sampleData(nalStartCode, 4);
           // Write the NAL unit type byte.
           output.sampleData(nalPrefix, 1);
@@ -1422,6 +1430,8 @@ public class FragmentedMp4Extractor implements Extractor {
             // Read and write the payload of the SEI NAL unit.
             nalBuffer.reset(sampleCurrentNalBytesRemaining);
             input.readFully(nalBuffer.getData(), 0, sampleCurrentNalBytesRemaining);
+            //将解析后的nal数据输出出去
+            Log.d("duruochen", "将解析后的nal数据输出到SampleQueue");
             output.sampleData(nalBuffer, sampleCurrentNalBytesRemaining);
             writtenBytes = sampleCurrentNalBytesRemaining;
             // Unescape and process the SEI NAL unit.
@@ -1433,6 +1443,8 @@ public class FragmentedMp4Extractor implements Extractor {
             CeaUtil.consume(sampleTimeUs, nalBuffer, ceaTrackOutputs);
           } else {
             // Write the payload of the NAL unit.
+//            Log.d("duruochen", "sampleData3:视频"  + trackBundle.output);
+
             writtenBytes = output.sampleData(input, sampleCurrentNalBytesRemaining, false);
           }
           sampleBytesWritten += writtenBytes;
@@ -1441,6 +1453,7 @@ public class FragmentedMp4Extractor implements Extractor {
       }
     } else {
       while (sampleBytesWritten < sampleSize) {
+//        Log.d("duruochen", "sampleData4:音频" + trackBundle.output);
         int writtenBytes = output.sampleData(input, sampleSize - sampleBytesWritten, false);
         sampleBytesWritten += writtenBytes;
       }
@@ -1785,6 +1798,8 @@ public class FragmentedMp4Extractor implements Extractor {
       encryptionSignalByte.getData()[0] =
           (byte) (vectorSize | (writeSubsampleEncryptionData ? 0x80 : 0));
       encryptionSignalByte.setPosition(0);
+      Log.d("duruochen", "sampleData5");
+
       output.sampleData(encryptionSignalByte, 1, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);
       // Write the vector.
       output.sampleData(
@@ -1811,6 +1826,8 @@ public class FragmentedMp4Extractor implements Extractor {
         data[5] = (byte) ((sampleSize >> 16) & 0xFF);
         data[6] = (byte) ((sampleSize >> 8) & 0xFF);
         data[7] = (byte) (sampleSize & 0xFF);
+        Log.d("duruochen", "sampleData6");
+
         output.sampleData(
             scratch,
             SINGLE_SUBSAMPLE_ENCRYPTION_DATA_LENGTH,
@@ -1836,6 +1853,7 @@ public class FragmentedMp4Extractor implements Extractor {
         scratchData[3] = (byte) (adjustedClearDataSize & 0xFF);
         subsampleEncryptionData = scratch;
       }
+      Log.d("duruochen", "sampleData7");
 
       output.sampleData(
           subsampleEncryptionData, subsampleDataLength, TrackOutput.SAMPLE_DATA_PART_ENCRYPTION);

@@ -70,7 +70,7 @@ public class SampleQueue implements TrackOutput {
 
   private final SampleDataQueue sampleDataQueue;
   private final SampleExtrasHolder extrasHolder;
-  private final SpannedData<SharedSampleMetadata> sharedSampleMetadata;
+  private final SpannedData<SharedSampleMetadata> sharedSampleMetadata;  //保存format数据
   @Nullable private final DrmSessionManager drmSessionManager;
   @Nullable private final DrmSessionEventListener.EventDispatcher drmEventDispatcher;
   @Nullable private UpstreamFormatChangedListener upstreamFormatChangeListener;
@@ -573,7 +573,8 @@ public class SampleQueue implements TrackOutput {
   // TrackOutput implementation. Called by the loading thread.
 
   @Override
-  public final void format(Format unadjustedUpstreamFormat) {
+  public final void format(Format unadjustedUpstreamFormat) { //设置/更新format
+    Log.d("duruochen", "设置format");
     Format adjustedUpstreamFormat = getAdjustedUpstreamFormat(unadjustedUpstreamFormat);
     upstreamFormatAdjustmentRequired = false;
     this.unadjustedUpstreamFormat = unadjustedUpstreamFormat;
@@ -589,7 +590,7 @@ public class SampleQueue implements TrackOutput {
       throws IOException {
     return sampleDataQueue.sampleData(input, length, allowEndOfInput);
   }
-
+  //传入解封装后的音频/视频数据
   @Override
   public final void sampleData(
       ParsableByteArray data, int length, @SampleDataPart int sampleDataPart) {
@@ -703,7 +704,7 @@ public class SampleQueue implements TrackOutput {
 
     Format format = sharedSampleMetadata.get(getReadIndex()).format;
     if (formatRequired || format != downstreamFormat) {
-      onFormatResult(format, formatHolder);
+      onFormatResult(format, formatHolder); //寻找format信息，来创建解码器
       return C.RESULT_FORMAT_READ;
     }
 
