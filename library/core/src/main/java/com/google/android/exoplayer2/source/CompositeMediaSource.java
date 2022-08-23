@@ -23,6 +23,7 @@ import com.google.android.exoplayer2.drm.DrmSession;
 import com.google.android.exoplayer2.drm.DrmSessionEventListener;
 import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.UnknownNull;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
@@ -117,6 +118,7 @@ public abstract class CompositeMediaSource<T> extends BaseMediaSource {
     childSources.put(id, new MediaSourceAndListener<>(mediaSource, caller, eventListener));
     mediaSource.addEventListener(Assertions.checkNotNull(eventHandler), eventListener);
     mediaSource.addDrmEventListener(Assertions.checkNotNull(eventHandler), eventListener);
+    Log.d("duruochen", "dashmediaSource.prepareSource请求mpd");
     mediaSource.prepareSource(caller, mediaTransferListener, getPlayerId());
     if (!isEnabled()) {
       mediaSource.disable(caller);

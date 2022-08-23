@@ -75,7 +75,7 @@ import com.google.android.exoplayer2.video.AvcConfig;
   }
 
   @Override
-  protected boolean parsePayload(ParsableByteArray data, long timeUs) throws ParserException {
+  protected boolean parsePayload(ParsableByteArray data, long timeUs, long pts) throws ParserException {
     int packetType = data.readUnsignedByte();  //视频的格式(CodecID)是AVC（H.264）的话，VideoTagHeader会多出4个字节的信息，AVCPacketType 和CompositionTime。
     int compositionTimeMs = data.readInt24();
 
@@ -101,6 +101,9 @@ import com.google.android.exoplayer2.video.AvcConfig;
       return false;
     } else if (packetType == AVC_PACKET_TYPE_AVC_NALU && hasOutputFormat) {
       boolean isKeyframe = frameType == VIDEO_FRAME_KEYFRAME;
+      if (isKeyframe) {
+        Log.d("duruochen666", "解析flv得到pts:" + pts + "   timestampUs=" + timeUs + "   compositionTimeUs=" + (compositionTimeMs * 1000));
+      }
       if (!hasOutputKeyframe && !isKeyframe) {
         return false;
       }

@@ -77,7 +77,7 @@ public class CompositeSequenceableLoader implements SequenceableLoader {
             loaderNextLoadPositionUs != C.TIME_END_OF_SOURCE
                 && loaderNextLoadPositionUs <= positionUs;
         if (loaderNextLoadPositionUs == nextLoadPositionUs || isLoaderBehind) {
-          madeProgressThisIteration |= loader.continueLoading(positionUs);
+          madeProgressThisIteration |= loader.continueLoading(positionUs); //下载
         }
       }
       madeProgress |= madeProgressThisIteration;

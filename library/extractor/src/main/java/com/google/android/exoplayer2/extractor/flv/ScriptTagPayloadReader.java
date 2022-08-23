@@ -78,7 +78,7 @@ import java.util.Map;
   }
 
   @Override
-  protected boolean parsePayload(ParsableByteArray data, long timeUs) {
+  protected boolean parsePayload(ParsableByteArray data, long timeUs, long pts) {
     int nameType = readAmfType(data);
     if (nameType != AMF_TYPE_STRING) {
       // Ignore segments with unexpected name type.

@@ -28,6 +28,7 @@ import com.google.android.exoplayer2.source.ads.AdPlaybackState;
 import com.google.android.exoplayer2.upstream.Allocator;
 import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.Util;
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 
@@ -113,6 +114,7 @@ public final class MaskingMediaSource extends CompositeMediaSource<Void> {
       unpreparedMaskingMediaPeriod = mediaPeriod;
       if (!hasStartedPreparing) {
         hasStartedPreparing = true;
+        Log.d("duruochen", "创建完成MaskingMediaPeriod   立马请求媒体资源");
         prepareChildSource(/* id= */ null, mediaSource);
       }
     }

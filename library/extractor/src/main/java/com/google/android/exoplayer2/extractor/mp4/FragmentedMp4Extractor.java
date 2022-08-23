@@ -472,7 +472,7 @@ public class FragmentedMp4Extractor implements Extractor {
     } else if (leaf.type == Atom.TYPE_sidx) {
       //sidx（segment index）记录了各个moof+mdat组成的segment的精确byte position，所以我们只需要Load一个很小的sidx box就能方便的实现码率切换了。
       Pair<Long, ChunkIndex> result = parseSidx(leaf.data, inputPosition);
-      Log.d("duruochen", "解析完成分块信息:" + result);
+      Log.d("duruochen", "解析完成分块信息sidx:" + result);
       segmentIndexEarliestPresentationTimeUs = result.first;
       extractorOutput.seekMap(result.second);
       haveOutputSeekMap = true;
@@ -569,6 +569,7 @@ public class FragmentedMp4Extractor implements Extractor {
   private void onMoofContainerAtomRead(ContainerAtom moof) throws ParserException {
     parseMoof(moof, trackBundles, sideloadedTrack != null, flags, scratchBytes);
 
+    Log.d("duruochen", "moof解析完毕");
     @Nullable DrmInitData drmInitData = getDrmInitDataFromAtoms(moof.leafChildren);
     if (drmInitData != null) {
       int trackCount = trackBundles.size();

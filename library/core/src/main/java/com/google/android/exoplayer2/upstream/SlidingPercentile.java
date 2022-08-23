@@ -57,7 +57,7 @@ public class SlidingPercentile {
 
   /** @param maxWeight The maximum weight. */
   public SlidingPercentile(int maxWeight) {
-    this.maxWeight = maxWeight;  //2000B * 2000 = 2kb * 2000 = 4mb
+    this.maxWeight = maxWeight;  //2000
     recycledSamples = new Sample[MAX_RECYCLED_SAMPLES];
     samples = new ArrayList<>();
     currentSortOrder = SORT_ORDER_NONE;
@@ -117,7 +117,7 @@ public class SlidingPercentile {
     for (int i = 0; i < samples.size(); i++) {
       Sample currentSample = samples.get(i);
       accumulatedWeight += currentSample.weight;
-      if (accumulatedWeight >= desiredWeight) {
+      if (accumulatedWeight >= desiredWeight) { //找到当前百分位对应的媒体块
         return currentSample.value;
       }
     }

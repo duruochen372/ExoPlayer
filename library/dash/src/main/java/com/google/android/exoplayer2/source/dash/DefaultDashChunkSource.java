@@ -259,6 +259,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
       manifest = newManifest;
       periodIndex = newPeriodIndex;
       long periodDurationUs = manifest.getPeriodDurationUs(periodIndex);
+      Log.d("duruochen", "updateManifest:periodDurationUs=" + periodDurationUs);
       List<Representation> representations = getRepresentations();
       for (int i = 0; i < representationHolders.length; i++) {
         Representation representation = representations.get(trackSelection.getIndexInTrackGroup(i));
@@ -415,6 +416,7 @@ public class DefaultDashChunkSource implements DashChunkSource {
     if (segmentNum > lastAvailableSegmentNum
         || (missingLastSegment && segmentNum >= lastAvailableSegmentNum)) {
       // The segment is beyond the end of the period.
+      Log.d("duruochen", "下载太快了");
       out.endOfStream = periodEnded;
       return;
     }
@@ -834,8 +836,8 @@ public class DefaultDashChunkSource implements DashChunkSource {
     /* package */ RepresentationHolder copyWithNewRepresentation(
         long newPeriodDurationUs, Representation newRepresentation)
         throws BehindLiveWindowException {
-      @Nullable DashSegmentIndex oldIndex = representation.getIndex();
-      @Nullable DashSegmentIndex newIndex = newRepresentation.getIndex();
+      @Nullable DashSegmentIndex oldIndex = representation.getIndex(); //老的分片信息
+      @Nullable DashSegmentIndex newIndex = newRepresentation.getIndex(); //新的分片信息
 
       if (oldIndex == null) {
         // Segment numbers cannot shift if the index isn't defined by the manifest.

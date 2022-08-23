@@ -90,7 +90,7 @@ import java.util.Collections;
   }
 
   @Override
-  protected boolean parsePayload(ParsableByteArray data, long timeUs) throws ParserException {
+  protected boolean parsePayload(ParsableByteArray data, long timeUs, long pts) throws ParserException {
     if (audioFormat == AUDIO_FORMAT_MP3) {
       int sampleSize = data.bytesLeft();
       output.sampleData(data, sampleSize);

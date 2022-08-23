@@ -303,7 +303,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
     trackSelectorResult = newTrackSelectorResult;
     enableTrackSelectionsInResult();
     // Disable streams on the period and get new streams for updated/newly-enabled tracks.
-    positionUs =
+    positionUs = //选择轨道
         mediaPeriod.selectTracks(
             newTrackSelectorResult.selections,
             mayRetainStreamFlags,

@@ -196,14 +196,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
   private final Clock clock;
   private final PlaybackInfoUpdateListener playbackInfoUpdateListener;
   private final MediaPeriodQueue queue;
-  private final MediaSourceList mediaSourceList;
+  private final MediaSourceList mediaSourceList; //当前的播放源集合
   private final LivePlaybackSpeedControl livePlaybackSpeedControl;
   private final long releaseTimeoutMs;
 
   @SuppressWarnings("unused")
   private SeekParameters seekParameters;
 
-  private PlaybackInfo playbackInfo;
+  private PlaybackInfo playbackInfo; //当前正在播放的资源
   private PlaybackInfoUpdate playbackInfoUpdate;
   private boolean released;
   private boolean pauseAtEndOfWindow;
@@ -532,7 +532,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
         case MSG_SEND_MESSAGE_TO_TARGET_THREAD:
           sendMessageToTargetThread((PlayerMessage) msg.obj);
           break;
-        case MSG_SET_MEDIA_SOURCES:
+        case MSG_SET_MEDIA_SOURCES: //设置播放源
           setMediaItemsInternal((MediaSourceListUpdateMessage) msg.obj);
           break;
         case MSG_ADD_MEDIA_SOURCES:
@@ -702,6 +702,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
     loadControl.onPrepared();
     setState(playbackInfo.timeline.isEmpty() ? Player.STATE_ENDED : Player.STATE_BUFFERING);
     mediaSourceList.prepare(bandwidthMeter.getTransferListener());
+    Log.d("duruochen", "prepare  开启doSomeWork");
     handler.sendEmptyMessage(MSG_DO_SOME_WORK);
   }
 
@@ -1905,7 +1906,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       resetPendingPauseAtEndOfPeriod();
       resolvePendingMessagePositions(
           /* newTimeline= */ timeline, /* previousTimeline= */ playbackInfo.timeline);
-      playbackInfo = playbackInfo.copyWithTimeline(timeline);
+      playbackInfo = playbackInfo.copyWithTimeline(timeline); //更新timeline
       if (!timeline.isEmpty()) {
         // Retain pending seek position only while the timeline is still empty.
         pendingInitialSeekPosition = null;
@@ -1982,8 +1983,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
     }
     maybeUpdateLoadingPeriod();  //创建MediaPeriod，进行网络请求获取流媒体数据
     maybeUpdateReadingPeriod();
-    maybeUpdateReadingRenderers();
-    maybeUpdatePlayingPeriod();
+    maybeUpdateReadingRenderers(); //启动解码器
+    maybeUpdatePlayingPeriod(); // 更新playbackInfo
   }
 
   private void maybeUpdateLoadingPeriod() throws ExoPlaybackException {
@@ -2253,7 +2254,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
       return;
     }
     MediaPeriodHolder loadingPeriodHolder = queue.getLoadingPeriod();
-    loadingPeriodHolder.handlePrepared(
+    loadingPeriodHolder.handlePrepared( //选择轨道
         mediaClock.getPlaybackParameters().speed, playbackInfo.timeline);
     Log.d("duruochen", "轨道选择完毕");
     updateLoadControlTrackSelection(
@@ -2315,8 +2316,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
   }
 
   private void maybeContinueLoading() {
+//    Log.d("duruochen", "maybeContinueLoading");
     shouldContinueLoading = shouldContinueLoading();
     if (shouldContinueLoading) {
+//      Log.d("duruochen", "continueLoading");
       queue.getLoadingPeriod().continueLoading(rendererPositionUs);
     } else {
 //      Log.d("duruochen", "暂停下载");

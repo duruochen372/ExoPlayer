@@ -152,7 +152,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
     eventStreams = period.eventStreams;
     Pair<TrackGroupArray, TrackGroupInfo[]> result =
         buildTrackGroups(drmSessionManager, period.adaptationSets, eventStreams);
-    Log.d("duruochen", "构建轨道组");
+    Log.d("duruochen", "创建DashMediaPeriod  构建轨道组trackGroups");
     trackGroups = result.first;
     trackGroupInfos = result.second;
   }
@@ -272,7 +272,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
       @NullableType SampleStream[] streams,
       boolean[] streamResetFlags,
       long positionUs) {
-    Log.d("duruochen" , "selectTracks  构建SampleStream");
+    Log.d("duruochen" , "DashMediaPeriod  selectTracks  构建SampleStream");
     int[] streamIndexToTrackGroupIndex = getStreamIndexToTrackGroupIndex(selections);
     releaseDisabledStreams(selections, mayRetainStreamFlags, streams);
     releaseOrphanEmbeddedStreams(selections, streams, streamIndexToTrackGroupIndex);

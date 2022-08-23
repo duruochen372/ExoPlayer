@@ -93,7 +93,7 @@ public class SampleQueue implements TrackOutput {
 
   private long startTimeUs;
   private long largestDiscardedTimestampUs;
-  private long largestQueuedTimestampUs;
+  private long largestQueuedTimestampUs; //当前下载到哪个位置了
   private boolean isLastSampleQueued;
   private boolean upstreamKeyframeRequired;
   private boolean upstreamFormatRequired;
@@ -609,6 +609,7 @@ public class SampleQueue implements TrackOutput {
     }
 
     boolean isKeyframe = (flags & C.BUFFER_FLAG_KEY_FRAME) != 0;
+//    Log.d("duruochen", "sampleMetadata:" + isKeyframe);
     if (upstreamKeyframeRequired) {
       if (!isKeyframe) {
         return;

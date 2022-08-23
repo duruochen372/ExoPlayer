@@ -1802,7 +1802,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
    * @return Whether it may be possible to drain more output data.
    * @throws ExoPlaybackException If an error occurs draining the output buffer.
    */
-  private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs) //排尽buffer
+  private boolean drainOutputBuffer(long positionUs, long elapsedRealtimeUs) //取出解码后的数据并去送显
       throws ExoPlaybackException {
     if (!hasOutputBuffer()) {
       int outputIndex;
@@ -1810,6 +1810,9 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         try {
 //          Log.d("duruochen", "取解码后的数据1");
           outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo); //从输出队列中取出编码操作之后的数据
+//          Log.d("duruochen", "解码完一帧数据1:pts=" + outputBufferInfo.presentationTimeUs + "   flag=" + outputBufferInfo.flags + "   size=" + outputBufferInfo.size
+//              + "   offset=" + outputBufferInfo.offset);
+//          Log.d("duruochen666", "解码完成   是否为关键帧1：" + ((outputBufferInfo.flags & 0x01) == 1) + "   pts：" + outputBufferInfo.presentationTimeUs);
         } catch (IllegalStateException e) {
           processEndOfStream();
           if (outputStreamEnded) {
@@ -1821,7 +1824,15 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       } else {
 //        Log.d("duruochen", "取解码后的数据2");
         outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo);
-      }
+//        Log.d("duruochen", "解码完一帧数据2:pts=" + outputBufferInfo.presentationTimeUs + "   flag=" + outputBufferInfo.flags
+//            + "   size=" + outputBufferInfo.size + "   offset=" + outputBufferInfo.offset);
+        if ((outputBufferInfo.flags & 0x01) == 1) {
+          Log.d("duruochen666",
+              "解码完成   是否为关键帧2：" + ((outputBufferInfo.flags & 0x01) == 1) + "   pts："
+                  + outputBufferInfo.presentationTimeUs);
+        }
+
+      } 
 
       if (outputIndex < 0) {
         if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED /* (-2) */) {

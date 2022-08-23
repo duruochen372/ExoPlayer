@@ -1246,7 +1246,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   @RequiresApi(21)
   protected void renderOutputBufferV21(
       MediaCodecAdapter codec, int index, long presentationTimeUs, long releaseTimeNs) {
-//    Log.d("duruochen", "消费掉视频数据");
+//    Log.d("duruochen", "消费掉视频数据："+ "releaseTimeNs=" + releaseTimeNs + "      index=" + index + "    presentationTimeUs=" + presentationTimeUs );
     maybeNotifyVideoSizeChanged();
     TraceUtil.beginSection("releaseOutputBuffer");
     codec.releaseOutputBuffer(index, releaseTimeNs);

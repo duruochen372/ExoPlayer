@@ -128,7 +128,7 @@ public final class MaskingMediaPeriod implements MediaPeriod, MediaPeriod.Callba
     long preparePositionUs = getPreparePositionWithOverride(this.preparePositionUs);
     mediaPeriod = checkNotNull(mediaSource).createPeriod(id, allocator, preparePositionUs);
     if (callback != null) {
-      Log.d("duruochen", "createPeriod完成，prepare完成");
+      Log.d("duruochen", "createPeriod完成，prepare整体完成");
       mediaPeriod.prepare(/* callback= */ this, preparePositionUs);
     }
   }

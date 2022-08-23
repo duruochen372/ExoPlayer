@@ -855,5 +855,13 @@ public class AdaptiveTrackSelection extends BaseTrackSelection {
     public int hashCode() {
       return 31 * (int) totalBandwidth + (int) allocatedBandwidth;
     }
+
+    @Override
+    public String toString() {
+      return "AdaptationCheckpoint{" +
+          "totalBandwidth=" + totalBandwidth +
+          ", allocatedBandwidth=" + allocatedBandwidth +
+          '}';
+    }
   }
 }

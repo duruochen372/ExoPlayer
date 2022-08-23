@@ -387,6 +387,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     if (loadingFinished) {
       return C.TIME_END_OF_SOURCE;
     } else if (isPendingReset()) {
+      Log.d("duruochen", "getBufferedPositionUs   pendingResetPositionUs=" + pendingResetPositionUs);
       return pendingResetPositionUs;
     }
     long largestQueuedTimestampUs = Long.MAX_VALUE;
@@ -403,6 +404,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     if (largestQueuedTimestampUs == Long.MAX_VALUE) {
       largestQueuedTimestampUs = getLargestQueuedTimestampUs();
     }
+    Log.d("duruochen", "getBufferedPositionUs当前下载到的位置:" + largestQueuedTimestampUs + "  是否选择:" + (largestQueuedTimestampUs != Long.MIN_VALUE));
     return largestQueuedTimestampUs == Long.MIN_VALUE
         ? lastSeekPositionUs
         : largestQueuedTimestampUs;
@@ -726,6 +728,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     this.sampleQueueTrackIds = Util.castNonNullTypeArray(sampleQueueTrackIds);
     @NullableType SampleQueue[] sampleQueues = Arrays.copyOf(this.sampleQueues, trackCount + 1);
     sampleQueues[trackCount] = trackOutput;
+    Log.d("duruochen", "根据媒体类型创建对应的SampleQueue");
     this.sampleQueues = Util.castNonNullTypeArray(sampleQueues);
     return trackOutput;
   }
@@ -796,7 +799,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
   }
 
   private void startLoading() {
-    ExtractingLoadable loadable =
+    ExtractingLoadable loadable = //创建loader
         new ExtractingLoadable(
             uri, dataSource, progressiveMediaExtractor, /* extractorOutput= */ this, loadCondition);
     if (prepared) {
@@ -816,7 +819,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     }
     extractedSamplesCountAtStartOfLoad = getExtractedSamplesCount();
     long elapsedRealtimeMs =
-        loader.startLoading(   //load
+        loader.startLoading(   //load数据
             loadable, this, loadErrorHandlingPolicy.getMinimumLoadableRetryCount(dataType));
     DataSpec dataSpec = loadable.dataSpec;
     mediaSourceEventDispatcher.loadStarted(

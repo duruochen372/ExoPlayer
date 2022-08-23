@@ -498,4 +498,12 @@ public class PlaybackException extends Exception implements Bundleable {
     }
     return cause;
   }
+
+  @Override
+  public String toString() {
+    return "PlaybackException{" +
+        "errorCode=" + errorCode +
+        ", timestampMs=" + timestampMs +
+        '}';
+  }
 }

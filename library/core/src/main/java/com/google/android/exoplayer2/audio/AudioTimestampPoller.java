@@ -304,7 +304,7 @@ import java.lang.annotation.Target;
         lastTimestampPositionFrames =
             rawPositionFrames + (rawTimestampFramePositionWrapCount << 32);
       }
-      Log.d("duruochen", "getTimestamp：" + updated);
+//      Log.d("duruochen", "getTimestamp：" + updated);
       return updated;
     }
 

@@ -399,7 +399,7 @@ public final class DefaultBandwidthMeter implements BandwidthMeter, TransferList
       slidingPercentile.addSample((int) Math.sqrt(sampleBytesTransferred), bitsPerSecond); //增加样本数据，其内部可估算出一个当前带宽
       if (totalElapsedTimeMs >= ELAPSED_MILLIS_FOR_ESTIMATE
           || totalBytesTransferred >= BYTES_TRANSFERRED_FOR_ESTIMATE) {
-        bitrateEstimate = (long) slidingPercentile.getPercentile(0.5f);//取权重值为0.5的带宽作为预估的带宽（下载过程中的中间位置的带宽）
+        bitrateEstimate = (long) slidingPercentile.getPercentile(0.5f);//取百分位为0.5的带宽作为预估的带宽（下载过程中的中间位置的带宽）
         Log.d("duruochen", "预估带宽:bitrateEstimate=" + bitrateEstimate + "         " + ((float)bitrateEstimate / (8 * 1024)) + "KB/s" + "   totalElapsedTimeMs=" + totalElapsedTimeMs);
       } else {
         Log.d("duruochen", "样本量太少:totalBytesTransferred=" + (totalBytesTransferred /1024) + "KB" + "   totalElapsedTimeMs=" + totalElapsedTimeMs);

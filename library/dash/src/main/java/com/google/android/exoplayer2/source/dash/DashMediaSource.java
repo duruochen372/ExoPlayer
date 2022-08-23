@@ -381,6 +381,7 @@ public final class DashMediaSource extends BaseMediaSource {
     this.compositeSequenceableLoaderFactory = compositeSequenceableLoaderFactory;
     baseUrlExclusionList = new BaseUrlExclusionList();
     sideloadedManifest = manifest != null;
+    Log.d("duruochen", "new  DashMediaSource     sideloadedManifest=" + sideloadedManifest);
     manifestEventDispatcher = createEventDispatcher(/* mediaPeriodId= */ null);
     manifestUriLock = new Object();
     periodsById = new SparseArray<>();
@@ -466,6 +467,7 @@ public final class DashMediaSource extends BaseMediaSource {
             playerEmsgCallback,
             getPlayerId());
     periodsById.put(mediaPeriod.id, mediaPeriod);
+    Log.d("duruochen", "创建DashMediaPeriod：id=" + mediaPeriod.id);
     return mediaPeriod;
   }
 
@@ -600,8 +602,10 @@ public final class DashMediaSource extends BaseMediaSource {
     if (oldPeriodCount == 0) {
       if (manifest.dynamic) {
         if (manifest.utcTiming != null) {
+          Log.d("duruochen", "resolveUtcTimingElement");
           resolveUtcTimingElement(manifest.utcTiming);
         } else {
+          Log.d("duruochen", "loadNtpTimeOffset");
           loadNtpTimeOffset();
         }
       } else {
@@ -856,6 +860,7 @@ public final class DashMediaSource extends BaseMediaSource {
         }
         long nextLoadTimestampMs = manifestLoadStartTimestampMs + minUpdatePeriodMs;
         long delayUntilNextLoadMs = max(0, nextLoadTimestampMs - SystemClock.elapsedRealtime());
+        Log.d("duruochen", "直播需要定时不断刷新mpd文件   manifest.minUpdatePeriodMs=" + manifest.minUpdatePeriodMs);
         scheduleManifestRefresh(delayUntilNextLoadMs);
       }
     }

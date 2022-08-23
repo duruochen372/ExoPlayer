@@ -55,8 +55,8 @@ import com.google.android.exoplayer2.util.ParsableByteArray;
    * @return Whether a sample was output.
    * @throws ParserException If an error occurs parsing the data.
    */
-  public final boolean consume(ParsableByteArray data, long timeUs) throws ParserException {
-    return parseHeader(data) && parsePayload(data, timeUs);
+  public final boolean consume(ParsableByteArray data, long timeUs, long pts) throws ParserException {
+    return parseHeader(data) && parsePayload(data, timeUs, pts);
   }
 
   /**
@@ -76,6 +76,6 @@ import com.google.android.exoplayer2.util.ParsableByteArray;
    * @return Whether a sample was output.
    * @throws ParserException If an error occurs parsing the payload.
    */
-  protected abstract boolean parsePayload(ParsableByteArray data, long timeUs)
+  protected abstract boolean parsePayload(ParsableByteArray data, long timeUs, long pts)
       throws ParserException;
 }

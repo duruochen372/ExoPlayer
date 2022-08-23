@@ -577,7 +577,7 @@ public class ChunkSampleStream<T extends ChunkSource>
     Log.d("duruochen","取下一个媒体块:mediaType=" + primaryTrackType +  "       positionUs=" + positionUs + "  loadPositionUs=" + loadPositionUs);
     chunkSource.getNextChunk(positionUs, loadPositionUs, chunkQueue, nextChunkHolder);
     boolean endOfStream = nextChunkHolder.endOfStream;
-    @Nullable Chunk loadable = nextChunkHolder.chunk;
+    @Nullable Chunk loadable = nextChunkHolder.chunk;  //取出下一个分块作为当前分块
     nextChunkHolder.clear();
 
     if (endOfStream) {

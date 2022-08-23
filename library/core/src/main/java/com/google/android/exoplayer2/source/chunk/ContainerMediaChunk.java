@@ -122,7 +122,7 @@ public class ContainerMediaChunk extends BaseMediaChunk {
       DataSpec loadDataSpec = dataSpec.subrange(nextLoadPosition);
       ExtractorInput input =
           new DefaultExtractorInput(
-              dataSource, loadDataSpec.position, dataSource.open(loadDataSpec));
+              dataSource, loadDataSpec.position, dataSource.open(loadDataSpec)); //http请求
       // Load and decode the sample data.
       try {
         while (!loadCanceled && chunkExtractor.read(input)) {}

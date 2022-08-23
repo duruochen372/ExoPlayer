@@ -34,6 +34,7 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultLoadErrorHandlingPolicy;
 import com.google.android.exoplayer2.upstream.LoadErrorHandlingPolicy;
 import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.Log;
 
 /**
  * Provides one period that loads data from a {@link Uri} and extracted using an {@link Extractor}.
@@ -259,6 +260,7 @@ public final class ProgressiveMediaSource extends BaseMediaSource
 
   @Override
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
+    Log.d("duruochen", "创建ProgressiveMediaSource");
     DataSource dataSource = dataSourceFactory.createDataSource();
     if (transferListener != null) {
       dataSource.addTransferListener(transferListener);
@@ -341,6 +343,7 @@ public final class ProgressiveMediaSource extends BaseMediaSource
             }
           };
     }
+    Log.d("duruochen", "创建 SinglePeriodTimeline");
     refreshSourceInfo(timeline);
   }
 }

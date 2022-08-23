@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 
@@ -39,7 +40,9 @@ import java.util.ConcurrentModificationException;
 public final class SntpClient {
 
   /** The default NTP host address used to retrieve {@link #getElapsedRealtimeOffsetMs()}. */
-  public static final String DEFAULT_NTP_HOST = "time.android.com";
+//  public static final String DEFAULT_NTP_HOST = "time.android.com";
+  public static final String DEFAULT_NTP_HOST = "time1.cloud.tencent.com";
+
 
   /** Callback for calls to {@link #initialize(Loader, InitializationCallback)}. */
   public interface InitializationCallback {
@@ -160,58 +163,69 @@ public final class SntpClient {
         new NtpTimeLoadable(), new NtpTimeCallback(callback), /* defaultMinRetryCount= */ 1);
   }
 
-  private static long loadNtpTimeOffsetMs() throws IOException {
-    InetAddress address = InetAddress.getByName(getNtpHost());
-    try (DatagramSocket socket = new DatagramSocket()) {
-      socket.setSoTimeout(TIMEOUT_MS);
-      byte[] buffer = new byte[NTP_PACKET_SIZE];
-      DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, NTP_PORT);
-
-      // Set mode = 3 (client) and version = 3. Mode is in low 3 bits of the first byte and Version
-      // is in bits 3-5 of the first byte.
-      buffer[0] = NTP_MODE_CLIENT | (NTP_VERSION << 3);
-
-      // Get current time and write it to the request packet.
-      long requestTime = System.currentTimeMillis();
-      long requestTicks = SystemClock.elapsedRealtime();
-      writeTimestamp(buffer, TRANSMIT_TIME_OFFSET, requestTime);
-
-      socket.send(request);
-
-      // Read the response.
-      DatagramPacket response = new DatagramPacket(buffer, buffer.length);
-      socket.receive(response);
-      final long responseTicks = SystemClock.elapsedRealtime();
-      final long responseTime = requestTime + (responseTicks - requestTicks);
-
-      // Extract the results.
-      final byte leap = (byte) ((buffer[0] >> 6) & 0x3);
-      final byte mode = (byte) (buffer[0] & 0x7);
-      final int stratum = (int) (buffer[1] & 0xff);
-      final long originateTime = readTimestamp(buffer, ORIGINATE_TIME_OFFSET);
-      final long receiveTime = readTimestamp(buffer, RECEIVE_TIME_OFFSET);
-      final long transmitTime = readTimestamp(buffer, TRANSMIT_TIME_OFFSET);
-
-      // Check server reply validity according to RFC.
-      checkValidServerReply(leap, mode, stratum, transmitTime);
-
-      // receiveTime = originateTime + transit + skew
-      // responseTime = transmitTime + transit - skew
-      // clockOffset = ((receiveTime - originateTime) + (transmitTime - responseTime))/2
-      //             = ((originateTime + transit + skew - originateTime) +
-      //                (transmitTime - (transmitTime + transit - skew)))/2
-      //             = ((transit + skew) + (transmitTime - transmitTime - transit + skew))/2
-      //             = (transit + skew - transit + skew)/2
-      //             = (2 * skew)/2 = skew
-      long clockOffset = ((receiveTime - originateTime) + (transmitTime - responseTime)) / 2;
-
-      // Save our results using the times on this side of the network latency (i.e. response rather
-      // than request time)
-      long ntpTime = responseTime + clockOffset;
-      long ntpTimeReference = responseTicks;
-
-      return ntpTime - ntpTimeReference;
-    }
+  private static long loadNtpTimeOffsetMs()  { //对时经常socket超时  先返回0，认为当前系统时间就是北京时间
+    return 0;
+//    InetAddress address = null;
+//    try {
+//      address = InetAddress.getByName(getNtpHost());
+//    } catch (UnknownHostException e) {
+//      Log.d("duruochen", "UnknownHostException:" + e.toString());
+//      e.printStackTrace();
+//    }
+//    try (DatagramSocket socket = new DatagramSocket()) {
+//      socket.setSoTimeout(TIMEOUT_MS);
+//      byte[] buffer = new byte[NTP_PACKET_SIZE];
+//      DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, NTP_PORT);
+//
+//      // Set mode = 3 (client) and version = 3. Mode is in low 3 bits of the first byte and Version
+//      // is in bits 3-5 of the first byte.
+//      buffer[0] = NTP_MODE_CLIENT | (NTP_VERSION << 3);
+//
+//      // Get current time and write it to the request packet.
+//      long requestTime = System.currentTimeMillis();
+//      long requestTicks = SystemClock.elapsedRealtime();
+//      writeTimestamp(buffer, TRANSMIT_TIME_OFFSET, requestTime);
+//
+//      socket.send(request);
+//
+//      // Read the response.
+//      DatagramPacket response = new DatagramPacket(buffer, buffer.length);
+//      socket.receive(response);
+//      final long responseTicks = SystemClock.elapsedRealtime();
+//      final long responseTime = requestTime + (responseTicks - requestTicks);
+//
+//      // Extract the results.
+//      final byte leap = (byte) ((buffer[0] >> 6) & 0x3);
+//      final byte mode = (byte) (buffer[0] & 0x7);
+//      final int stratum = (int) (buffer[1] & 0xff);
+//      final long originateTime = readTimestamp(buffer, ORIGINATE_TIME_OFFSET);
+//      final long receiveTime = readTimestamp(buffer, RECEIVE_TIME_OFFSET);
+//      final long transmitTime = readTimestamp(buffer, TRANSMIT_TIME_OFFSET);
+//
+//      // Check server reply validity according to RFC.
+//      checkValidServerReply(leap, mode, stratum, transmitTime);
+//
+//      // receiveTime = originateTime + transit + skew
+//      // responseTime = transmitTime + transit - skew
+//      // clockOffset = ((receiveTime - originateTime) + (transmitTime - responseTime))/2
+//      //             = ((originateTime + transit + skew - originateTime) +
+//      //                (transmitTime - (transmitTime + transit - skew)))/2
+//      //             = ((transit + skew) + (transmitTime - transmitTime - transit + skew))/2
+//      //             = (transit + skew - transit + skew)/2
+//      //             = (2 * skew)/2 = skew
+//      long clockOffset = ((receiveTime - originateTime) + (transmitTime - responseTime)) / 2;
+//
+//      // Save our results using the times on this side of the network latency (i.e. response rather
+//      // than request time)
+//      long ntpTime = responseTime + clockOffset;
+//      long ntpTimeReference = responseTicks;
+//
+//      return ntpTime - ntpTimeReference;
+//    } catch (Exception e) {
+//      e.printStackTrace();
+//      Log.d("duruochen", "对时失败:" + e.toString());
+//      return 0;
+//    }
   }
 
   private static long readTimestamp(byte[] buffer, int offset) {
