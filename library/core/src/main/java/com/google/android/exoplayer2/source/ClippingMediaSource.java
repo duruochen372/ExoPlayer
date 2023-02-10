@@ -22,10 +22,8 @@ import static java.lang.annotation.ElementType.TYPE_USE;
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
-import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.upstream.Allocator;
-import com.google.android.exoplayer2.upstream.TransferListener;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
 import java.io.IOException;
@@ -39,7 +37,7 @@ import java.util.ArrayList;
  * {@link MediaSource} that wraps a source and clips its timeline based on specified start/end
  * positions. The wrapped source must consist of a single period.
  */
-public final class ClippingMediaSource extends CompositeMediaSource<Void> {
+public final class ClippingMediaSource extends WrappingMediaSource {
 
   /** Thrown when a {@link ClippingMediaSource} cannot clip its wrapped source. */
   public static final class IllegalClippingException extends IOException {
@@ -63,7 +61,9 @@ public final class ClippingMediaSource extends CompositeMediaSource<Void> {
     /** The reason clipping failed. */
     public final @Reason int reason;
 
-    /** @param reason The reason clipping failed. */
+    /**
+     * @param reason The reason clipping failed.
+     */
     public IllegalClippingException(@Reason int reason) {
       super("Illegal clipping: " + getReasonDescription(reason));
       this.reason = reason;
@@ -83,7 +83,6 @@ public final class ClippingMediaSource extends CompositeMediaSource<Void> {
     }
   }
 
-  private final MediaSource mediaSource;
   private final long startUs;
   private final long endUs;
   private final boolean enableInitialDiscontinuity;
@@ -179,8 +178,8 @@ public final class ClippingMediaSource extends CompositeMediaSource<Void> {
       boolean enableInitialDiscontinuity,
       boolean allowDynamicClippingUpdates,
       boolean relativeToDefaultPosition) {
+    super(Assertions.checkNotNull(mediaSource));
     Assertions.checkArgument(startPositionUs >= 0);
-    this.mediaSource = Assertions.checkNotNull(mediaSource);
     startUs = startPositionUs;
     endUs = endPositionUs;
     this.enableInitialDiscontinuity = enableInitialDiscontinuity;
@@ -188,17 +187,6 @@ public final class ClippingMediaSource extends CompositeMediaSource<Void> {
     this.relativeToDefaultPosition = relativeToDefaultPosition;
     mediaPeriods = new ArrayList<>();
     window = new Timeline.Window();
-  }
-
-  @Override
-  public MediaItem getMediaItem() {
-    return mediaSource.getMediaItem();
-  }
-
-  @Override
-  protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
-    super.prepareSourceInternal(mediaTransferListener);
-    prepareChildSource(/* id= */ null, mediaSource);
   }
 
   @Override
@@ -238,11 +226,11 @@ public final class ClippingMediaSource extends CompositeMediaSource<Void> {
   }
 
   @Override
-  protected void onChildSourceInfoRefreshed(Void id, MediaSource mediaSource, Timeline timeline) {
+  protected void onChildSourceInfoRefreshed(Timeline newTimeline) {
     if (clippingError != null) {
       return;
     }
-    refreshClippedTimeline(timeline);
+    refreshClippedTimeline(newTimeline);
   }
 
   private void refreshClippedTimeline(Timeline timeline) {

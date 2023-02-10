@@ -25,33 +25,48 @@ import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.FormatHolder;
 import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
 import com.google.android.exoplayer2.source.SampleStream.ReadDataResult;
-import java.nio.ByteBuffer;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
-import org.checkerframework.checker.nullness.qual.RequiresNonNull;
+import com.google.android.exoplayer2.util.DebugViewProvider;
+import com.google.android.exoplayer2.util.Effect;
+import com.google.android.exoplayer2.util.FrameProcessor;
+import com.google.common.collect.ImmutableList;
 
 /* package */ final class TransformerVideoRenderer extends TransformerBaseRenderer {
 
   private static final String TAG = "TVideoRenderer";
 
   private final Context context;
+  private final boolean clippingStartsAtKeyFrame;
+  private final ImmutableList<Effect> effects;
+  private final FrameProcessor.Factory frameProcessorFactory;
   private final Codec.EncoderFactory encoderFactory;
   private final Codec.DecoderFactory decoderFactory;
-  private final Transformer.DebugViewProvider debugViewProvider;
+  private final DebugViewProvider debugViewProvider;
   private final DecoderInputBuffer decoderInputBuffer;
-
-  private @MonotonicNonNull SefSlowMotionFlattener sefSlowMotionFlattener;
 
   public TransformerVideoRenderer(
       Context context,
       MuxerWrapper muxerWrapper,
       TransformerMediaClock mediaClock,
       TransformationRequest transformationRequest,
+      boolean clippingStartsAtKeyFrame,
+      ImmutableList<Effect> effects,
+      FrameProcessor.Factory frameProcessorFactory,
       Codec.EncoderFactory encoderFactory,
       Codec.DecoderFactory decoderFactory,
+      Transformer.AsyncErrorListener asyncErrorListener,
       FallbackListener fallbackListener,
-      Transformer.DebugViewProvider debugViewProvider) {
-    super(C.TRACK_TYPE_VIDEO, muxerWrapper, mediaClock, transformationRequest, fallbackListener);
+      DebugViewProvider debugViewProvider) {
+    super(
+        C.TRACK_TYPE_VIDEO,
+        muxerWrapper,
+        mediaClock,
+        transformationRequest,
+        asyncErrorListener,
+        fallbackListener);
     this.context = context;
+    this.clippingStartsAtKeyFrame = clippingStartsAtKeyFrame;
+    this.effects = effects;
+    this.frameProcessorFactory = frameProcessorFactory;
     this.encoderFactory = encoderFactory;
     this.decoderFactory = decoderFactory;
     this.debugViewProvider = debugViewProvider;
@@ -77,67 +92,78 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
       return false;
     }
     Format inputFormat = checkNotNull(formatHolder.format);
-    if (shouldPassthrough(inputFormat)) {
-      samplePipeline =
-          new PassthroughSamplePipeline(inputFormat, transformationRequest, fallbackListener);
-    } else {
+    if (shouldTranscode(inputFormat)) {
       samplePipeline =
           new VideoTranscodingSamplePipeline(
               context,
               inputFormat,
+              streamOffsetUs,
+              streamStartPositionUs,
               transformationRequest,
+              effects,
+              frameProcessorFactory,
               decoderFactory,
               encoderFactory,
-              muxerWrapper.getSupportedSampleMimeTypes(getTrackType()),
+              muxerWrapper,
               fallbackListener,
+              asyncErrorListener,
               debugViewProvider);
-    }
-    if (transformationRequest.flattenForSlowMotion) {
-      sefSlowMotionFlattener = new SefSlowMotionFlattener(inputFormat);
+    } else {
+      samplePipeline =
+          new PassthroughSamplePipeline(
+              inputFormat,
+              streamOffsetUs,
+              streamStartPositionUs,
+              transformationRequest,
+              muxerWrapper,
+              fallbackListener);
     }
     return true;
   }
 
-  private boolean shouldPassthrough(Format inputFormat) {
-    if (transformationRequest.enableHdrEditing) {
-      return false;
+  private boolean shouldTranscode(Format inputFormat) {
+    if ((streamStartPositionUs - streamOffsetUs) != 0 && !clippingStartsAtKeyFrame) {
+      return true;
+    }
+    if (encoderFactory.videoNeedsEncoding()) {
+      return true;
+    }
+    if (transformationRequest.enableRequestSdrToneMapping) {
+      return true;
+    }
+    if (transformationRequest.forceInterpretHdrVideoAsSdr) {
+      return true;
     }
     if (transformationRequest.videoMimeType != null
         && !transformationRequest.videoMimeType.equals(inputFormat.sampleMimeType)) {
-      return false;
+      return true;
     }
     if (transformationRequest.videoMimeType == null
         && !muxerWrapper.supportsSampleMimeType(inputFormat.sampleMimeType)) {
-      return false;
+      return true;
     }
+    if (inputFormat.pixelWidthHeightRatio != 1f) {
+      return true;
+    }
+    if (transformationRequest.rotationDegrees != 0f) {
+      return true;
+    }
+    if (transformationRequest.scaleX != 1f) {
+      return true;
+    }
+    if (transformationRequest.scaleY != 1f) {
+      return true;
+    }
+    // The decoder rotates encoded frames for display by inputFormat.rotationDegrees.
+    int decodedHeight =
+        (inputFormat.rotationDegrees % 180 == 0) ? inputFormat.height : inputFormat.width;
     if (transformationRequest.outputHeight != C.LENGTH_UNSET
-        && transformationRequest.outputHeight != inputFormat.height) {
-      return false;
+        && transformationRequest.outputHeight != decodedHeight) {
+      return true;
     }
-    if (!transformationRequest.transformationMatrix.isIdentity()) {
-      return false;
+    if (!effects.isEmpty()) {
+      return true;
     }
-    return true;
-  }
-
-  /**
-   * Queues the input buffer to the sample pipeline unless it should be dropped because of slow
-   * motion flattening.
-   *
-   * @param inputBuffer The {@link DecoderInputBuffer}.
-   * @throws TransformationException If a {@link SamplePipeline} problem occurs.
-   */
-  @Override
-  @RequiresNonNull({"samplePipeline", "#1.data"})
-  protected void maybeQueueSampleToPipeline(DecoderInputBuffer inputBuffer)
-      throws TransformationException {
-    ByteBuffer data = inputBuffer.data;
-    boolean shouldDropSample =
-        sefSlowMotionFlattener != null && sefSlowMotionFlattener.dropOrTransformSample(inputBuffer);
-    if (shouldDropSample) {
-      data.clear();
-    } else {
-      samplePipeline.queueInputBuffer();
-    }
+    return false;
   }
 }

@@ -61,7 +61,9 @@ public final class MergingMediaSource extends CompositeMediaSource<Integer> {
     /** The reason the merge failed. */
     public final @Reason int reason;
 
-    /** @param reason The reason the merge failed. */
+    /**
+     * @param reason The reason the merge failed.
+     */
     public IllegalMergeException(@Reason int reason) {
       this.reason = reason;
     }
@@ -234,13 +236,13 @@ public final class MergingMediaSource extends CompositeMediaSource<Integer> {
 
   @Override
   protected void onChildSourceInfoRefreshed(
-      Integer id, MediaSource mediaSource, Timeline timeline) {
+      Integer childSourceId, MediaSource mediaSource, Timeline newTimeline) {
     if (mergeError != null) {
       return;
     }
     if (periodCount == PERIOD_COUNT_UNSET) {
-      periodCount = timeline.getPeriodCount();
-    } else if (timeline.getPeriodCount() != periodCount) {
+      periodCount = newTimeline.getPeriodCount();
+    } else if (newTimeline.getPeriodCount() != periodCount) {
       mergeError = new IllegalMergeException(IllegalMergeException.REASON_PERIOD_COUNT_MISMATCH);
       return;
     }
@@ -248,7 +250,7 @@ public final class MergingMediaSource extends CompositeMediaSource<Integer> {
       periodTimeOffsetsUs = new long[periodCount][timelines.length];
     }
     pendingTimelineSources.remove(mediaSource);
-    timelines[id] = timeline;
+    timelines[childSourceId] = newTimeline;
     if (pendingTimelineSources.isEmpty()) {
       if (adjustPeriodTimeOffsets) {
         computePeriodTimeOffsets();
@@ -265,8 +267,8 @@ public final class MergingMediaSource extends CompositeMediaSource<Integer> {
   @Override
   @Nullable
   protected MediaPeriodId getMediaPeriodIdForChildMediaPeriodId(
-      Integer id, MediaPeriodId mediaPeriodId) {
-    return id == 0 ? mediaPeriodId : null;
+      Integer childSourceId, MediaPeriodId mediaPeriodId) {
+    return childSourceId == 0 ? mediaPeriodId : null;
   }
 
   private void computePeriodTimeOffsets() {

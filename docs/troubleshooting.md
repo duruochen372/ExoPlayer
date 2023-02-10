@@ -9,6 +9,7 @@ redirect_from:
 * [Fixing "SSLHandshakeException", "CertPathValidatorException" and "ERR_CERT_AUTHORITY_INVALID" errors][]
 * [Why are some media files not seekable?][]
 * [Why is seeking inaccurate in some MP3 files?][]
+* [Why is seeking in my video slow?][]
 * [Why do some MPEG-TS files fail to play?][]
 * [Why do some MP4/FMP4 files play incorrectly?][]
 * [Why do some streams fail with HTTP response code 301 or 302?][]
@@ -22,6 +23,7 @@ redirect_from:
 * [Why does content fail to play, but no error is surfaced?]
 * [How can I get a decoding extension to load and be used for playback?][]
 * [Can I play YouTube videos directly with ExoPlayer?][]
+* [Video playback is stuttering][]
 
 ---
 
@@ -102,6 +104,27 @@ decided to optimize for speed over accuracy in this case and
 If you control the media you're playing, we strongly advise that you use a more
 appropriate container format, such as MP4. There are no use cases we're aware of
 where MP3 is the best choice of media format.
+
+#### Why is seeking in my video slow? ####
+
+When the player seeks to a new playback position in a video it needs to do two
+things:
+
+1. Load the data corresponding to the new playback position into the buffer
+   (this may not be necessary if this data is already buffered).
+2. Flush the video decoder and start decoding from the I-frame (keyframe) before
+   the new playback position, due to the [intra-frame coding] used by most video
+   compression formats. In order to ensure the seek is 'accurate' (i.e.
+   playback starts exactly at the seek position), all frames between the
+   preceding I-frame and the seek position need to be decoded and immediately
+   discarded (without being shown on the screen).
+
+The latency introduced by (1) can be mitigated by either increasing the amount
+of data buffered in memory by the player, or [pre-caching the data to disk].
+
+The latency introduced by (2) can be mitigated by either reducing the accuracy
+of the seek using [`ExoPlayer.setSeekParameters`], or re-encoding the video
+to have more frequent I-frames (which will result in a larger output file).
 
 #### Why do some MPEG-TS files fail to play? ####
 
@@ -293,11 +316,22 @@ No, ExoPlayer cannot play videos from YouTube, i.e., urls of the form
 Android Player API](https://developers.google.com/youtube/android/player/) which
 is the official way to play YouTube videos on Android.
 
+#### Video playback is stuttering ###
+
+The device may not be able to decode the content fast enough if, for example,
+the content bitrate or resolution exceeds the device capabilities. You may need
+to use lower quality content to obtain good performance on such devices.
+
+If you're experiencing video stuttering on a device running Android 6 to 11,
+particularly when playing DRM protected or high frame rate content, you can try
+[enabling asynchronous buffer queueing].
+
 [Fixing "Cleartext HTTP traffic not permitted" errors]: #fixing-cleartext-http-traffic-not-permitted-errors
 [Fixing "SSLHandshakeException", "CertPathValidatorException" and "ERR_CERT_AUTHORITY_INVALID" errors]: #fixing-sslhandshakeexception-certpathvalidatorexception-and-err_cert_authority_invalid-errors
 [What formats does ExoPlayer support?]: #what-formats-does-exoplayer-support
 [Why are some media files not seekable?]: #why-are-some-media-files-not-seekable
 [Why is seeking inaccurate in some MP3 files?]: #why-is-seeking-inaccurate-in-some-mp3-files
+[Why is seeking in my video slow?]: #why-is-seeking-in-my-video-slow
 [Why do some MPEG-TS files fail to play?]: #why-do-some-mpeg-ts-files-fail-to-play
 [Why do some MP4/FMP4 files play incorrectly?]: #why-do-some-mp4fmp4-files-play-incorrectly
 [Why do some streams fail with HTTP response code 301 or 302?]: #why-do-some-streams-fail-with-http-response-code-301-or-302
@@ -311,19 +345,22 @@ is the official way to play YouTube videos on Android.
 [Why does content fail to play, but no error is surfaced?]: #why-does-content-fail-to-play-but-no-error-is-surfaced
 [How can I get a decoding extension to load and be used for playback?]: #how-can-i-get-a-decoding-extension-to-load-and-be-used-for-playback
 [Can I play YouTube videos directly with ExoPlayer?]: #can-i-play-youtube-videos-directly-with-exoplayer
-
+[Video playback is stuttering]: #video-playback-is-stuttering
 
 [Supported formats]: {{ site.baseurl }}/supported-formats.html
 [set on a `DefaultExtractorsFactory`]: {{ site.base_url }}/customization.html#customizing-extractor-flags
-[`setMp3ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setMp3ExtractorFlags(int)
+[`setMp3ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setMp3ExtractorFlags(@com.google.android.exoplayer2.extractor.mp4.Mp4Extractor.Flagsint)
 [`FLAG_ENABLE_INDEX_SEEKING`]: {{ site.exo_sdk }}/extractor/mp3/Mp3Extractor.html#FLAG_ENABLE_INDEX_SEEKING
+[intra-frame coding]: https://en.wikipedia.org/wiki/Intra-frame_coding
+[pre-caching the data to disk]: https://exoplayer.dev/downloading-media.html
+[`ExoPlayer.setSeekParameters]: {{ site.exo_sdk }}/ExoPlayer.html#setSeekParameters(com.google.android.exoplayer2.SeekParameters)
 [`FLAG_DETECT_ACCESS_UNITS`]: {{ site.exo_sdk }}/extractor/ts/DefaultTsPayloadReaderFactory.html#FLAG_DETECT_ACCESS_UNITS
 [`FLAG_ALLOW_NON_IDR_KEYFRAMES`]: {{ site.exo_sdk }}/extractor/ts/DefaultTsPayloadReaderFactory.html#FLAG_ALLOW_NON_IDR_KEYFRAMES
-[`setTsExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setTsExtractorFlags(int)
+[`setTsExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setTsExtractorFlags(@com.google.android.exoplayer2.extractor.mp4.Mp4Extractor.Flagsint)
 [`Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS`]: {{ site.exo_sdk }}/extractor/mp4/Mp4Extractor.html#FLAG_WORKAROUND_IGNORE_EDIT_LISTS
 [`FragmentedMp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS`]: {{ site.exo_sdk }}/extractor/mp4/FragmentedMp4Extractor.html#FLAG_WORKAROUND_IGNORE_EDIT_LISTS
-[`setMp4ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setMp4ExtractorFlags(int)
-[`setFragmentedMp4ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setFragmentedMp4ExtractorFlags(int)
+[`setMp4ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setMp4ExtractorFlags(@com.google.android.exoplayer2.extractor.mp4.Mp4Extractor.Flagsint)
+[`setFragmentedMp4ExtractorFlags`]: {{ site.exo_sdk }}/extractor/DefaultExtractorsFactory#setFragmentedMp4ExtractorFlags(@com.google.android.exoplayer2.extractor.mp4.Mp4Extractor.Flagsint)
 [Wikipedia]: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 [wget]: https://www.gnu.org/software/wget/manual/wget.html
 [`DefaultHttpDataSource.Factory`]: {{ site.exo_sdk }}/upstream/DefaultHttpDataSource.Factory.html
@@ -349,3 +386,4 @@ is the official way to play YouTube videos on Android.
 [`DefaultRenderersFactory`]: {{ site.exo_sdk }}/DefaultRenderersFactory.html
 [`LibraryLoader`]: {{ site.exo_sdk }}/util/LibraryLoader.html
 [`EventLogger`]: {{ site.baseurl }}/debug-logging.html
+[enabling asynchronous buffer queueing]: {{ site.baseurl }}/customization.html#enabling-asynchronous-buffer-queueing

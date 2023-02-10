@@ -161,21 +161,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
   private static final int ACTIVE_INTERVAL_MS = 10;
   private static final int IDLE_INTERVAL_MS = 1000;
   /**
-   * Duration under which pausing the main DO_SOME_WORK loop is not expected to yield significant
-   * power saving.
-   *
-   * <p>This value is probably too high, power measurements are needed adjust it, but as renderer
-   * sleep is currently only implemented for audio offload, which uses buffer much bigger than 2s,
-   * this does not matter for now.
-   */
-  private static final long MIN_RENDERER_SLEEP_DURATION_MS = 2000;
-  /**
    * Duration for which the player needs to appear stuck before the playback is failed on the
    * assumption that no further progress will be made. To appear stuck, the player's renderers must
    * not be ready, there must be more media available to load, and the LoadControl must be refusing
    * to load it.
    */
   private static final long PLAYBACK_STUCK_AFTER_MS = 4000;
+  /**
+   * Threshold under which a buffered duration is assumed to be empty. We cannot use zero to account
+   * for buffers currently hold but not played by the renderer.
+   */
+  private static final long PLAYBACK_BUFFER_EMPTY_THRESHOLD_US = 500_000;
 
   private final Renderer[] renderers;
   private final Set<Renderer> renderersToReset;
@@ -818,10 +814,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
       return;
     }
     this.offloadSchedulingEnabled = offloadSchedulingEnabled;
-    @Player.State int state = playbackInfo.playbackState;
-    if (offloadSchedulingEnabled || state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
-      playbackInfo = playbackInfo.copyWithOffloadSchedulingEnabled(offloadSchedulingEnabled);
-    } else {
+    if (!offloadSchedulingEnabled && playbackInfo.sleepingForOffload) {
+      // We need to wake the player up if offload scheduling is disabled and we are sleeping.
       handler.sendEmptyMessage(MSG_DO_SOME_WORK);
     }
   }
@@ -961,12 +955,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
   private void doSomeWork() throws ExoPlaybackException, IOException {
     long operationStartTimeMs = clock.uptimeMillis();
+    // Remove other pending DO_SOME_WORK requests that are handled by this invocation.
+    handler.removeMessages(MSG_DO_SOME_WORK);
+
     updatePeriods();
 
     if (playbackInfo.playbackState == Player.STATE_IDLE
         || playbackInfo.playbackState == Player.STATE_ENDED) {
-      // Remove all messages. Prepare (in case of IDLE) or seek (in case of ENDED) will resume.
-      handler.removeMessages(MSG_DO_SOME_WORK);
+      // Nothing to do. Prepare (in case of IDLE) or seek (in case of ENDED) will resume.
       return;
     }
 
@@ -1059,7 +1055,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
         }
       }
       if (!playbackInfo.isLoading
-          && playbackInfo.totalBufferedDurationUs < 500_000
+          && playbackInfo.totalBufferedDurationUs < PLAYBACK_BUFFER_EMPTY_THRESHOLD_US
           && isLoadingPossible()) {
         // The renderers are not ready, there is more media available to load, and the LoadControl
         // is refusing to load it (indicated by !playbackInfo.isLoading). This could be because the
@@ -1079,23 +1075,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
       throw new IllegalStateException("Playback stuck buffering and not loading");
     }
 
-    if (offloadSchedulingEnabled != playbackInfo.offloadSchedulingEnabled) {
-      playbackInfo = playbackInfo.copyWithOffloadSchedulingEnabled(offloadSchedulingEnabled);
-    }
-
-    boolean sleepingForOffload = false;
-    if ((shouldPlayWhenReady() && playbackInfo.playbackState == Player.STATE_READY)
-        || playbackInfo.playbackState == Player.STATE_BUFFERING) {
-      sleepingForOffload = !maybeScheduleWakeup(operationStartTimeMs, ACTIVE_INTERVAL_MS);
-    } else if (enabledRendererCount != 0 && playbackInfo.playbackState != Player.STATE_ENDED) {
-      scheduleNextWork(operationStartTimeMs, IDLE_INTERVAL_MS);
-    } else {
-      handler.removeMessages(MSG_DO_SOME_WORK);
-    }
+    boolean isPlaying = shouldPlayWhenReady() && playbackInfo.playbackState == Player.STATE_READY;
+    boolean sleepingForOffload = offloadSchedulingEnabled && requestForRendererSleep && isPlaying;
     if (playbackInfo.sleepingForOffload != sleepingForOffload) {
       playbackInfo = playbackInfo.copyWithSleepingForOffload(sleepingForOffload);
     }
     requestForRendererSleep = false; // A sleep request is only valid for the current doSomeWork.
+
+    if (sleepingForOffload || playbackInfo.playbackState == Player.STATE_ENDED) {
+      // No need to schedule next work.
+    } else if (isPlaying || playbackInfo.playbackState == Player.STATE_BUFFERING) {
+      // We are actively playing or waiting for data to be ready. Schedule next work quickly.
+      scheduleNextWork(operationStartTimeMs, ACTIVE_INTERVAL_MS);
+    } else if (playbackInfo.playbackState == Player.STATE_READY && enabledRendererCount != 0) {
+      // We are ready, but not playing. Schedule next work less often to handle non-urgent updates.
+      scheduleNextWork(operationStartTimeMs, IDLE_INTERVAL_MS);
+    }
 
     TraceUtil.endSection();
   }
@@ -1126,17 +1121,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
   }
 
   private void scheduleNextWork(long thisOperationStartTimeMs, long intervalMs) {
-    handler.removeMessages(MSG_DO_SOME_WORK);
     handler.sendEmptyMessageAtTime(MSG_DO_SOME_WORK, thisOperationStartTimeMs + intervalMs);
-  }
-
-  private boolean maybeScheduleWakeup(long operationStartTimeMs, long intervalMs) {
-    if (offloadSchedulingEnabled && requestForRendererSleep) {
-      return false;
-    }
-
-    scheduleNextWork(operationStartTimeMs, intervalMs);
-    return true;
   }
 
   private void seekToInternal(SeekPosition seekPosition) throws ExoPlaybackException {
@@ -1469,7 +1454,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
             /* bufferedPositionUs= */ startPositionUs,
             /* totalBufferedDurationUs= */ 0,
             /* positionUs= */ startPositionUs,
-            offloadSchedulingEnabled,
             /* sleepingForOffload= */ false);
     if (releaseMediaSourceList) {
       mediaSourceList.release();
@@ -2326,8 +2310,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
             ? loadingPeriodHolder.toPeriodTime(rendererPositionUs)
             : loadingPeriodHolder.toPeriodTime(rendererPositionUs)
                 - loadingPeriodHolder.info.startPositionUs;
-    return loadControl.shouldContinueLoading(
-        playbackPositionUs, bufferedDurationUs, mediaClock.getPlaybackParameters().speed);
+    boolean shouldContinueLoading =
+        loadControl.shouldContinueLoading(
+            playbackPositionUs, bufferedDurationUs, mediaClock.getPlaybackParameters().speed);
+    if (!shouldContinueLoading
+        && bufferedDurationUs < PLAYBACK_BUFFER_EMPTY_THRESHOLD_US
+        && (backBufferDurationUs > 0 || retainBackBufferFromKeyframe)) {
+      // LoadControl doesn't want to continue loading despite no buffered data. Clear back buffer
+      // and try again in case it's blocked on memory usage of the back buffer.
+      queue
+          .getPlayingPeriod()
+          .mediaPeriod
+          .discardBuffer(playbackInfo.positionUs, /* toKeyframe= */ false);
+      shouldContinueLoading =
+          loadControl.shouldContinueLoading(
+              playbackPositionUs, bufferedDurationUs, mediaClock.getPlaybackParameters().speed);
+    }
+    return shouldContinueLoading;
   }
 
   private boolean isLoadingPossible() {
@@ -2478,11 +2477,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
         Renderer.MSG_SET_WAKEUP_LISTENER,
         new Renderer.WakeupListener() {
           @Override
-          public void onSleep(long wakeupDeadlineMs) {
-            // Do not sleep if the expected sleep time is not long enough to save significant power.
-            if (wakeupDeadlineMs >= MIN_RENDERER_SLEEP_DURATION_MS) {
-              requestForRendererSleep = true;
-            }
+          public void onSleep() {
+            requestForRendererSleep = true;
           }
 
           @Override

@@ -22,6 +22,9 @@ android {
         targetSdkVersion project.ext.targetSdkVersion
         consumerProguardFiles 'proguard-rules.txt'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        aarMetadata {
+            minCompileSdk = project.ext.compileSdkVersion
+        }
     }
 
     compileOptions {
@@ -29,5 +32,10 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    testOptions.unitTests.includeAndroidResources = true
+    testOptions {
+        unitTests.all {
+            jvmArgs "-Xmx2g"
+        }
+        unitTests.includeAndroidResources true
+    }
 }

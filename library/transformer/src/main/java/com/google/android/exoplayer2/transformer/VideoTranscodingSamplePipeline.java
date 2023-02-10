@@ -17,18 +17,32 @@
 package com.google.android.exoplayer2.transformer;
 
 import static com.google.android.exoplayer2.util.Assertions.checkNotNull;
+import static com.google.android.exoplayer2.util.Assertions.checkState;
 import static com.google.android.exoplayer2.util.Util.SDK_INT;
 
 import android.content.Context;
-import android.graphics.Matrix;
 import android.media.MediaCodec;
-import android.media.MediaFormat;
+import android.os.Build;
+import android.view.Surface;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
+import com.google.android.exoplayer2.effect.Presentation;
+import com.google.android.exoplayer2.effect.ScaleToFitTransformation;
+import com.google.android.exoplayer2.util.DebugViewProvider;
+import com.google.android.exoplayer2.util.Effect;
+import com.google.android.exoplayer2.util.FrameInfo;
+import com.google.android.exoplayer2.util.FrameProcessingException;
+import com.google.android.exoplayer2.util.FrameProcessor;
+import com.google.android.exoplayer2.util.Log;
+import com.google.android.exoplayer2.util.SurfaceInfo;
 import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.video.ColorInfo;
+import com.google.common.collect.ImmutableList;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.dataflow.qual.Pure;
@@ -36,278 +50,507 @@ import org.checkerframework.dataflow.qual.Pure;
 /**
  * Pipeline to decode video samples, apply transformations on the raw samples, and re-encode them.
  */
-/* package */ final class VideoTranscodingSamplePipeline implements SamplePipeline {
+/* package */ final class VideoTranscodingSamplePipeline extends BaseSamplePipeline {
 
-  private final int outputRotationDegrees;
+  private final int maxPendingFrameCount;
+
   private final DecoderInputBuffer decoderInputBuffer;
   private final Codec decoder;
+  private final ArrayList<Long> decodeOnlyPresentationTimestamps;
 
-  private final Codec encoder;
+  private final FrameProcessor frameProcessor;
+
+  private final EncoderWrapper encoderWrapper;
   private final DecoderInputBuffer encoderOutputBuffer;
-
-  private @MonotonicNonNull FrameEditor frameEditor;
-
-  private boolean waitingForFrameEditorInput;
 
   public VideoTranscodingSamplePipeline(
       Context context,
       Format inputFormat,
+      long streamOffsetUs,
+      long streamStartPositionUs,
       TransformationRequest transformationRequest,
+      ImmutableList<Effect> effects,
+      FrameProcessor.Factory frameProcessorFactory,
       Codec.DecoderFactory decoderFactory,
       Codec.EncoderFactory encoderFactory,
-      List<String> allowedOutputMimeTypes,
+      MuxerWrapper muxerWrapper,
       FallbackListener fallbackListener,
-      Transformer.DebugViewProvider debugViewProvider)
+      Transformer.AsyncErrorListener asyncErrorListener,
+      DebugViewProvider debugViewProvider)
       throws TransformationException {
+    super(
+        inputFormat,
+        streamOffsetUs,
+        streamStartPositionUs,
+        transformationRequest.flattenForSlowMotion,
+        muxerWrapper);
+
+    if (ColorInfo.isTransferHdr(inputFormat.colorInfo)) {
+      if (transformationRequest.forceInterpretHdrVideoAsSdr) {
+        if (SDK_INT < 29) {
+          throw TransformationException.createForCodec(
+              new IllegalArgumentException("Interpreting HDR video as SDR is not supported."),
+              /* isVideo= */ true,
+              /* isDecoder= */ true,
+              inputFormat,
+              /* mediaCodecName= */ null,
+              TransformationException.ERROR_CODE_HDR_DECODING_UNSUPPORTED);
+        }
+        inputFormat = inputFormat.buildUpon().setColorInfo(ColorInfo.SDR_BT709_LIMITED).build();
+      } else if (SDK_INT < 31 || deviceNeedsNoToneMappingWorkaround()) {
+        throw TransformationException.createForCodec(
+            new IllegalArgumentException("HDR editing and tone mapping is not supported."),
+            /* isVideo= */ true,
+            /* isDecoder= */ false,
+            inputFormat,
+            /* mediaCodecName= */ null,
+            TransformationException.ERROR_CODE_HDR_ENCODING_UNSUPPORTED);
+      }
+    }
+
     decoderInputBuffer =
         new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED);
     encoderOutputBuffer =
         new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED);
+    decodeOnlyPresentationTimestamps = new ArrayList<>();
 
-    // Scale width and height to desired transformationRequest.outputHeight, preserving aspect
-    // ratio.
-    // TODO(b/209781577): Think about which edge length should be set for portrait videos.
-    float inputFormatAspectRatio = (float) inputFormat.width / inputFormat.height;
-    int outputWidth = inputFormat.width;
-    int outputHeight = inputFormat.height;
-    if (transformationRequest.outputHeight != C.LENGTH_UNSET
-        && transformationRequest.outputHeight != inputFormat.height) {
-      outputWidth = Math.round(inputFormatAspectRatio * transformationRequest.outputHeight);
-      outputHeight = transformationRequest.outputHeight;
+    // The decoder rotates encoded frames for display by inputFormat.rotationDegrees.
+    int decodedWidth =
+        (inputFormat.rotationDegrees % 180 == 0) ? inputFormat.width : inputFormat.height;
+    int decodedHeight =
+        (inputFormat.rotationDegrees % 180 == 0) ? inputFormat.height : inputFormat.width;
+
+    ImmutableList.Builder<Effect> effectsListBuilder =
+        new ImmutableList.Builder<Effect>().addAll(effects);
+    if (transformationRequest.scaleX != 1f
+        || transformationRequest.scaleY != 1f
+        || transformationRequest.rotationDegrees != 0f) {
+      effectsListBuilder.add(
+          new ScaleToFitTransformation.Builder()
+              .setScale(transformationRequest.scaleX, transformationRequest.scaleY)
+              .setRotationDegrees(transformationRequest.rotationDegrees)
+              .build());
+    }
+    if (transformationRequest.outputHeight != C.LENGTH_UNSET) {
+      effectsListBuilder.add(Presentation.createForHeight(transformationRequest.outputHeight));
     }
 
-    // The encoder may not support encoding in portrait orientation, so the decoded video is
-    // rotated to landscape orientation and a rotation is added back later to the output format.
-    boolean swapEncodingDimensions = inputFormat.height > inputFormat.width;
-    if (swapEncodingDimensions) {
-      outputRotationDegrees = (inputFormat.rotationDegrees + 90) % 360;
-      int temp = outputWidth;
-      outputWidth = outputHeight;
-      outputHeight = temp;
-    } else {
-      outputRotationDegrees = inputFormat.rotationDegrees;
-    }
-    float displayAspectRatio =
-        (inputFormat.rotationDegrees % 180) == 0
-            ? inputFormatAspectRatio
-            : 1.0f / inputFormatAspectRatio;
-
-    Matrix transformationMatrix = new Matrix(transformationRequest.transformationMatrix);
-    // Scale frames by input aspect ratio, to account for FrameEditor's square normalized device
-    // coordinates (-1 to 1) and preserve frame relative dimensions during transformations
-    // (ex. rotations). After this scaling, transformationMatrix operations operate on a rectangle
-    // for x from -displayAspectRatio to displayAspectRatio, and y from -1 to 1
-    transformationMatrix.preScale(displayAspectRatio, 1);
-    transformationMatrix.postScale(1.0f / displayAspectRatio, 1);
-
-    // The decoder rotates videos to their intended display orientation. The frameEditor rotates
-    // them back for improved encoder compatibility.
-    // TODO(b/201293185): After fragment shader transformations are implemented, put
-    // postRotate in a later vertex shader.
-    transformationMatrix.postRotate(outputRotationDegrees);
-
-    Format requestedOutputFormat =
-        new Format.Builder()
-            .setWidth(outputWidth)
-            .setHeight(outputHeight)
-            .setRotationDegrees(0)
-            .setSampleMimeType(
-                transformationRequest.videoMimeType != null
-                    ? transformationRequest.videoMimeType
-                    : inputFormat.sampleMimeType)
-            .build();
-    encoder = encoderFactory.createForVideoEncoding(requestedOutputFormat, allowedOutputMimeTypes);
-    Format actualOutputFormat = encoder.getConfigurationFormat();
-    fallbackListener.onTransformationRequestFinalized(
-        createFallbackTransformationRequest(
+    encoderWrapper =
+        new EncoderWrapper(
+            encoderFactory,
+            inputFormat,
+            muxerWrapper.getSupportedSampleMimeTypes(C.TRACK_TYPE_VIDEO),
             transformationRequest,
-            !swapEncodingDimensions,
-            requestedOutputFormat,
-            actualOutputFormat));
+            fallbackListener);
 
-    if (transformationRequest.enableHdrEditing
-        || inputFormat.height != actualOutputFormat.height
-        || inputFormat.width != actualOutputFormat.width
-        || !transformationMatrix.isIdentity()) {
-      frameEditor =
-          FrameEditor.create(
+    try {
+      frameProcessor =
+          frameProcessorFactory.create(
               context,
-              actualOutputFormat.width,
-              actualOutputFormat.height,
-              inputFormat.pixelWidthHeightRatio,
-              transformationMatrix,
-              /* outputSurface= */ checkNotNull(encoder.getInputSurface()),
-              transformationRequest.enableHdrEditing,
-              debugViewProvider);
-    }
+              new FrameProcessor.Listener() {
+                @Override
+                public void onOutputSizeChanged(int width, int height) {
+                  try {
+                    checkNotNull(frameProcessor)
+                        .setOutputSurfaceInfo(encoderWrapper.getSurfaceInfo(width, height));
+                  } catch (TransformationException exception) {
+                    asyncErrorListener.onTransformationException(exception);
+                  }
+                }
 
+                @Override
+                public void onOutputFrameAvailable(long presentationTimeUs) {
+                  // Do nothing as frames are released automatically.
+                }
+
+                @Override
+                public void onFrameProcessingError(FrameProcessingException exception) {
+                  asyncErrorListener.onTransformationException(
+                      TransformationException.createForFrameProcessingException(
+                          exception, TransformationException.ERROR_CODE_FRAME_PROCESSING_FAILED));
+                }
+
+                @Override
+                public void onFrameProcessingEnded() {
+                  try {
+                    encoderWrapper.signalEndOfInputStream();
+                  } catch (TransformationException exception) {
+                    asyncErrorListener.onTransformationException(exception);
+                  }
+                }
+              },
+              effectsListBuilder.build(),
+              debugViewProvider,
+              // HDR colors are only used if the MediaCodec encoder supports FEATURE_HdrEditing.
+              // This implies that the OpenGL EXT_YUV_target extension is supported and hence the
+              // default FrameProcessor, GlEffectsFrameProcessor, also supports HDR. Otherwise, tone
+              // mapping is applied, which ensures the decoder outputs SDR output for an HDR input.
+              encoderWrapper.getSupportedInputColor(),
+              /* releaseFramesAutomatically= */ true);
+    } catch (FrameProcessingException e) {
+      throw TransformationException.createForFrameProcessingException(
+          e, TransformationException.ERROR_CODE_FRAME_PROCESSING_FAILED);
+    }
+    frameProcessor.setInputFrameInfo(
+        new FrameInfo(
+            decodedWidth, decodedHeight, inputFormat.pixelWidthHeightRatio, streamOffsetUs));
+
+    boolean isToneMappingRequired =
+        ColorInfo.isTransferHdr(inputFormat.colorInfo)
+            && !ColorInfo.isTransferHdr(encoderWrapper.getSupportedInputColor());
     decoder =
         decoderFactory.createForVideoDecoding(
-            inputFormat,
-            frameEditor == null
-                ? checkNotNull(encoder.getInputSurface())
-                : frameEditor.getInputSurface());
+            inputFormat, frameProcessor.getInputSurface(), isToneMappingRequired);
+    maxPendingFrameCount = decoder.getMaxPendingFrameCount();
+  }
+
+  @Override
+  public void release() {
+    frameProcessor.release();
+    decoder.release();
+    encoderWrapper.release();
   }
 
   @Override
   @Nullable
-  public DecoderInputBuffer dequeueInputBuffer() throws TransformationException {
+  protected DecoderInputBuffer dequeueInputBufferInternal() throws TransformationException {
     return decoder.maybeDequeueInputBuffer(decoderInputBuffer) ? decoderInputBuffer : null;
   }
 
   @Override
-  public void queueInputBuffer() throws TransformationException {
+  protected void queueInputBufferInternal() throws TransformationException {
+    if (decoderInputBuffer.isDecodeOnly()) {
+      decodeOnlyPresentationTimestamps.add(decoderInputBuffer.timeUs);
+    }
     decoder.queueInputBuffer(decoderInputBuffer);
   }
 
   @Override
-  public boolean processData() throws TransformationException {
-    if (hasProcessedAllInputData()) {
+  protected boolean processDataUpToMuxer() throws TransformationException {
+    if (decoder.isEnded()) {
       return false;
     }
 
-    if (SDK_INT >= 29) {
-      return processDataV29();
-    } else {
-      return processDataDefault();
-    }
-  }
-
-  /**
-   * Processes input data from API 29.
-   *
-   * <p>In this method the decoder could decode multiple frames in one invocation; as compared to
-   * {@link #processDataDefault()}, in which one frame is decoded in each invocation. Consequently,
-   * if {@link FrameEditor} processes frames slower than the decoder, decoded frames are queued up
-   * in the decoder's output surface.
-   *
-   * <p>Prior to API 29, decoders may drop frames to keep their output surface from growing out of
-   * bound; while after API 29, the {@link MediaFormat#KEY_ALLOW_FRAME_DROP} key prevents frame
-   * dropping even when the surface is full. As dropping random frames is not acceptable in {@code
-   * Transformer}, using this method requires API level 29 or higher.
-   */
-  @RequiresApi(29)
-  private boolean processDataV29() throws TransformationException {
-    if (frameEditor != null) {
-      // Processes as many frames as possible. FrameEditor's output surface will block when it's
-      // full, so there will be no frame drop and the surface will not grow out of bound.
-      while (frameEditor.canProcessData()) {
-        frameEditor.processData();
-      }
-    }
-
-    while (decoder.getOutputBufferInfo() != null) {
-      if (frameEditor != null) {
-        frameEditor.registerInputFrame();
-      }
-      decoder.releaseOutputBuffer(/* render= */ true);
+    boolean processedData = false;
+    while (maybeProcessDecoderOutput()) {
+      processedData = true;
     }
     if (decoder.isEnded()) {
-      signalEndOfInputStream();
+      frameProcessor.signalEndOfInput();
     }
-
-    return frameEditor != null && frameEditor.canProcessData();
-  }
-
-  /** Processes input data. */
-  private boolean processDataDefault() throws TransformationException {
-    if (frameEditor != null) {
-      if (frameEditor.canProcessData()) {
-        waitingForFrameEditorInput = false;
-        frameEditor.processData();
-        return true;
-      }
-      if (waitingForFrameEditorInput) {
-        return false;
-      }
-    }
-
-    boolean decoderHasOutputBuffer = decoder.getOutputBufferInfo() != null;
-    if (decoderHasOutputBuffer) {
-      if (frameEditor != null) {
-        frameEditor.registerInputFrame();
-        waitingForFrameEditorInput = true;
-      }
-      decoder.releaseOutputBuffer(/* render= */ true);
-    }
-    if (decoder.isEnded()) {
-      signalEndOfInputStream();
-      return false;
-    }
-    return decoderHasOutputBuffer && !waitingForFrameEditorInput;
+    // If the decoder produced output, signal that it may be possible to process data again.
+    return processedData;
   }
 
   @Override
   @Nullable
-  public Format getOutputFormat() throws TransformationException {
-    @Nullable Format format = encoder.getOutputFormat();
-    return format == null
-        ? null
-        : format.buildUpon().setRotationDegrees(outputRotationDegrees).build();
+  protected Format getMuxerInputFormat() throws TransformationException {
+    return encoderWrapper.getOutputFormat();
   }
 
   @Override
   @Nullable
-  public DecoderInputBuffer getOutputBuffer() throws TransformationException {
-    encoderOutputBuffer.data = encoder.getOutputBuffer();
+  protected DecoderInputBuffer getMuxerInputBuffer() throws TransformationException {
+    encoderOutputBuffer.data = encoderWrapper.getOutputBuffer();
     if (encoderOutputBuffer.data == null) {
       return null;
     }
-    MediaCodec.BufferInfo bufferInfo = checkNotNull(encoder.getOutputBufferInfo());
+    MediaCodec.BufferInfo bufferInfo = checkNotNull(encoderWrapper.getOutputBufferInfo());
     encoderOutputBuffer.timeUs = bufferInfo.presentationTimeUs;
     encoderOutputBuffer.setFlags(bufferInfo.flags);
     return encoderOutputBuffer;
   }
 
   @Override
-  public void releaseOutputBuffer() throws TransformationException {
-    encoder.releaseOutputBuffer();
+  protected void releaseMuxerInputBuffer() throws TransformationException {
+    encoderWrapper.releaseOutputBuffer(/* render= */ false);
   }
 
   @Override
-  public boolean isEnded() {
-    return encoder.isEnded();
+  protected boolean isMuxerInputEnded() {
+    return encoderWrapper.isEnded();
   }
 
-  @Override
-  public void release() {
-    if (frameEditor != null) {
-      frameEditor.release();
-    }
-    decoder.release();
-    encoder.release();
-  }
-
+  /**
+   * Creates a {@link TransformationRequest}, based on an original {@code TransformationRequest} and
+   * parameters specifying alterations to it that indicate device support.
+   *
+   * @param transformationRequest The requested transformation.
+   * @param hasOutputFormatRotation Whether the input video will be rotated to landscape during
+   *     processing, with {@link Format#rotationDegrees} of 90 added to the output format.
+   * @param requestedFormat The requested format.
+   * @param supportedFormat A format supported by the device.
+   * @param isToneMappedToSdr Whether tone mapping to SDR will be applied.
+   * @return The created instance.
+   */
   @Pure
-  private static TransformationRequest createFallbackTransformationRequest(
+  private static TransformationRequest createSupportedTransformationRequest(
       TransformationRequest transformationRequest,
-      boolean resolutionIsHeight,
+      boolean hasOutputFormatRotation,
       Format requestedFormat,
-      Format actualFormat) {
+      Format supportedFormat,
+      boolean isToneMappedToSdr) {
     // TODO(b/210591626): Also update bitrate etc. once encoder configuration and fallback are
-    // implemented.
-    if (Util.areEqual(requestedFormat.sampleMimeType, actualFormat.sampleMimeType)
-        && ((!resolutionIsHeight && requestedFormat.width == actualFormat.width)
-            || (resolutionIsHeight && requestedFormat.height == actualFormat.height))) {
+    //  implemented.
+    if (transformationRequest.enableRequestSdrToneMapping == isToneMappedToSdr
+        && Util.areEqual(requestedFormat.sampleMimeType, supportedFormat.sampleMimeType)
+        && (hasOutputFormatRotation
+            ? requestedFormat.width == supportedFormat.width
+            : requestedFormat.height == supportedFormat.height)) {
       return transformationRequest;
     }
-    return transformationRequest
-        .buildUpon()
-        .setVideoMimeType(actualFormat.sampleMimeType)
-        .setResolution(resolutionIsHeight ? requestedFormat.height : requestedFormat.width)
+    TransformationRequest.Builder transformationRequestBuilder = transformationRequest.buildUpon();
+    if (transformationRequest.enableRequestSdrToneMapping != isToneMappedToSdr) {
+      checkState(isToneMappedToSdr);
+      transformationRequestBuilder
+          .setEnableRequestSdrToneMapping(true)
+          .experimental_setEnableHdrEditing(false);
+    }
+    return transformationRequestBuilder
+        .setVideoMimeType(supportedFormat.sampleMimeType)
+        .setResolution(hasOutputFormatRotation ? requestedFormat.width : requestedFormat.height)
         .build();
   }
 
-  private boolean hasProcessedAllInputData() {
-    return decoder.isEnded() && (frameEditor == null || frameEditor.isEnded());
+  private static boolean deviceNeedsNoToneMappingWorkaround() {
+    // Pixel build ID prefix does not support tone mapping. See http://b/249297370#comment8.
+    return Util.MANUFACTURER.equals("Google")
+        && (
+        /* Pixel 6 */ Build.ID.startsWith("TP1A")
+            || Build.ID.startsWith(/* Pixel Watch */ "rwd9.220429.053"));
   }
 
-  private void signalEndOfInputStream() throws TransformationException {
-    if (frameEditor != null) {
-      frameEditor.signalEndOfInputStream();
+  /**
+   * Feeds at most one decoder output frame to the next step of the pipeline.
+   *
+   * @return Whether a frame was processed.
+   * @throws TransformationException If a problem occurs while processing the frame.
+   */
+  private boolean maybeProcessDecoderOutput() throws TransformationException {
+    @Nullable MediaCodec.BufferInfo decoderOutputBufferInfo = decoder.getOutputBufferInfo();
+    if (decoderOutputBufferInfo == null) {
+      return false;
     }
-    if (frameEditor == null || frameEditor.isEnded()) {
-      encoder.signalEndOfInputStream();
+
+    if (isDecodeOnlyBuffer(decoderOutputBufferInfo.presentationTimeUs)) {
+      decoder.releaseOutputBuffer(/* render= */ false);
+      return true;
+    }
+
+    if (maxPendingFrameCount != Codec.UNLIMITED_PENDING_FRAME_COUNT
+        && frameProcessor.getPendingInputFrameCount() == maxPendingFrameCount) {
+      return false;
+    }
+
+    frameProcessor.registerInputFrame();
+    decoder.releaseOutputBuffer(/* render= */ true);
+    return true;
+  }
+
+  private boolean isDecodeOnlyBuffer(long presentationTimeUs) {
+    // We avoid using decodeOnlyPresentationTimestamps.remove(presentationTimeUs) because it would
+    // box presentationTimeUs, creating a Long object that would need to be garbage collected.
+    int size = decodeOnlyPresentationTimestamps.size();
+    for (int i = 0; i < size; i++) {
+      if (decodeOnlyPresentationTimestamps.get(i) == presentationTimeUs) {
+        decodeOnlyPresentationTimestamps.remove(i);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Wraps an {@linkplain Codec encoder} and provides its input {@link Surface}.
+   *
+   * <p>The encoder is created once the {@link Surface} is {@linkplain #getSurfaceInfo(int, int)
+   * requested}. If it is {@linkplain #getSurfaceInfo(int, int) requested} again with different
+   * dimensions, the same encoder is used and the provided dimensions stay fixed.
+   */
+  @VisibleForTesting
+  /* package */ static final class EncoderWrapper {
+    private static final String TAG = "EncoderWrapper";
+
+    private final Codec.EncoderFactory encoderFactory;
+    private final Format inputFormat;
+    private final List<String> allowedOutputMimeTypes;
+    private final TransformationRequest transformationRequest;
+    private final FallbackListener fallbackListener;
+    private final String requestedOutputMimeType;
+    private final ImmutableList<String> supportedEncoderNamesForHdrEditing;
+
+    private @MonotonicNonNull SurfaceInfo encoderSurfaceInfo;
+
+    private volatile @MonotonicNonNull Codec encoder;
+    private volatile int outputRotationDegrees;
+    private volatile boolean releaseEncoder;
+
+    public EncoderWrapper(
+        Codec.EncoderFactory encoderFactory,
+        Format inputFormat,
+        List<String> allowedOutputMimeTypes,
+        TransformationRequest transformationRequest,
+        FallbackListener fallbackListener) {
+      this.encoderFactory = encoderFactory;
+      this.inputFormat = inputFormat;
+      this.allowedOutputMimeTypes = allowedOutputMimeTypes;
+      this.transformationRequest = transformationRequest;
+      this.fallbackListener = fallbackListener;
+
+      requestedOutputMimeType =
+          transformationRequest.videoMimeType != null
+              ? transformationRequest.videoMimeType
+              : checkNotNull(inputFormat.sampleMimeType);
+      supportedEncoderNamesForHdrEditing =
+          EncoderUtil.getSupportedEncoderNamesForHdrEditing(
+              requestedOutputMimeType, inputFormat.colorInfo);
+    }
+
+    /** Returns the {@link ColorInfo} expected from the input surface. */
+    public ColorInfo getSupportedInputColor() {
+      boolean isHdrEditingEnabled =
+          transformationRequest.enableHdrEditing
+              && !transformationRequest.enableRequestSdrToneMapping
+              && !supportedEncoderNamesForHdrEditing.isEmpty();
+      boolean isInputToneMapped =
+          !isHdrEditingEnabled && ColorInfo.isTransferHdr(inputFormat.colorInfo);
+      if (isInputToneMapped) {
+        // When tone-mapping HDR to SDR is enabled, assume we get BT.709 to avoid having the encoder
+        // populate default color info, which depends on the resolution.
+        // TODO(b/237674316): Get the color info from the decoder output media format instead.
+        return ColorInfo.SDR_BT709_LIMITED;
+      }
+      if (inputFormat.colorInfo == null) {
+        Log.d(TAG, "colorInfo is null. Defaulting to SDR_BT709_LIMITED.");
+        return ColorInfo.SDR_BT709_LIMITED;
+      }
+      return inputFormat.colorInfo;
+    }
+
+    @Nullable
+    public SurfaceInfo getSurfaceInfo(int requestedWidth, int requestedHeight)
+        throws TransformationException {
+      if (releaseEncoder) {
+        return null;
+      }
+      if (encoderSurfaceInfo != null) {
+        return encoderSurfaceInfo;
+      }
+
+      // Encoders commonly support higher maximum widths than maximum heights. This may rotate the
+      // frame before encoding, so the encoded frame's width >= height, and sets
+      // rotationDegrees in the output Format to ensure the frame is displayed in the correct
+      // orientation.
+      boolean flipOrientation = requestedWidth < requestedHeight;
+      if (flipOrientation) {
+        int temp = requestedWidth;
+        requestedWidth = requestedHeight;
+        requestedHeight = temp;
+        outputRotationDegrees = 90;
+      }
+
+      Format requestedEncoderFormat =
+          new Format.Builder()
+              .setWidth(requestedWidth)
+              .setHeight(requestedHeight)
+              .setRotationDegrees(0)
+              .setFrameRate(inputFormat.frameRate)
+              .setSampleMimeType(requestedOutputMimeType)
+              .setColorInfo(getSupportedInputColor())
+              .build();
+
+      encoder =
+          encoderFactory.createForVideoEncoding(requestedEncoderFormat, allowedOutputMimeTypes);
+
+      Format encoderSupportedFormat = encoder.getConfigurationFormat();
+      if (ColorInfo.isTransferHdr(requestedEncoderFormat.colorInfo)) {
+        if (!requestedOutputMimeType.equals(encoderSupportedFormat.sampleMimeType)) {
+          throw createEncodingException(
+              new IllegalStateException("MIME type fallback unsupported with HDR editing"),
+              encoderSupportedFormat);
+        } else if (!supportedEncoderNamesForHdrEditing.contains(encoder.getName())) {
+          throw createEncodingException(
+              new IllegalStateException("Selected encoder doesn't support HDR editing"),
+              encoderSupportedFormat);
+        }
+      }
+      boolean isInputToneMapped =
+          ColorInfo.isTransferHdr(inputFormat.colorInfo)
+              && !ColorInfo.isTransferHdr(requestedEncoderFormat.colorInfo);
+      fallbackListener.onTransformationRequestFinalized(
+          createSupportedTransformationRequest(
+              transformationRequest,
+              /* hasOutputFormatRotation= */ flipOrientation,
+              requestedEncoderFormat,
+              encoderSupportedFormat,
+              isInputToneMapped));
+
+      encoderSurfaceInfo =
+          new SurfaceInfo(
+              encoder.getInputSurface(),
+              encoderSupportedFormat.width,
+              encoderSupportedFormat.height,
+              outputRotationDegrees);
+
+      if (releaseEncoder) {
+        encoder.release();
+      }
+      return encoderSurfaceInfo;
+    }
+
+    public void signalEndOfInputStream() throws TransformationException {
+      if (encoder != null) {
+        encoder.signalEndOfInputStream();
+      }
+    }
+
+    @Nullable
+    public Format getOutputFormat() throws TransformationException {
+      if (encoder == null) {
+        return null;
+      }
+      @Nullable Format outputFormat = encoder.getOutputFormat();
+      if (outputFormat != null && outputRotationDegrees != 0) {
+        outputFormat = outputFormat.buildUpon().setRotationDegrees(outputRotationDegrees).build();
+      }
+      return outputFormat;
+    }
+
+    @Nullable
+    public ByteBuffer getOutputBuffer() throws TransformationException {
+      return encoder != null ? encoder.getOutputBuffer() : null;
+    }
+
+    @Nullable
+    public MediaCodec.BufferInfo getOutputBufferInfo() throws TransformationException {
+      return encoder != null ? encoder.getOutputBufferInfo() : null;
+    }
+
+    public void releaseOutputBuffer(boolean render) throws TransformationException {
+      if (encoder != null) {
+        encoder.releaseOutputBuffer(render);
+      }
+    }
+
+    public boolean isEnded() {
+      return encoder != null && encoder.isEnded();
+    }
+
+    public void release() {
+      if (encoder != null) {
+        encoder.release();
+      }
+      releaseEncoder = true;
+    }
+
+    private TransformationException createEncodingException(Exception cause, Format format) {
+      return TransformationException.createForCodec(
+          cause,
+          /* isVideo= */ true,
+          /* isDecoder= */ false,
+          format,
+          checkNotNull(encoder).getName(),
+          TransformationException.ERROR_CODE_ENCODING_FAILED);
     }
   }
 }

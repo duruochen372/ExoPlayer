@@ -62,11 +62,8 @@ public interface Renderer extends PlayerMessage.Target {
      * The renderer no longer needs to render until the next wakeup.
      *
      * <p>Must be called from the thread ExoPlayer invokes the renderer from.
-     *
-     * @param wakeupDeadlineMs Maximum time in milliseconds until {@link #onWakeup()} will be
-     *     called.
      */
-    void onSleep(long wakeupDeadlineMs);
+    void onSleep();
 
     /**
      * The renderer needs to render some frames. The client should call {@link #render(long, long)}
@@ -197,6 +194,13 @@ public interface Renderer extends PlayerMessage.Target {
    * <p>The message payload must be a {@link WakeupListener} instance.
    */
   int MSG_SET_WAKEUP_LISTENER = 11;
+  /**
+   * The type of a message that can be passed to audio renderers via {@link
+   * ExoPlayer#createMessage(PlayerMessage.Target)}. The message payload should be an {@link
+   * android.media.AudioDeviceInfo} instance representing the preferred audio device, or null to
+   * restore the default.
+   */
+  int MSG_SET_PREFERRED_AUDIO_DEVICE = 12;
   /**
    * Applications or extensions may define custom {@code MSG_*} constants that can be passed to
    * renderers. These custom constants must be greater than or equal to this value.

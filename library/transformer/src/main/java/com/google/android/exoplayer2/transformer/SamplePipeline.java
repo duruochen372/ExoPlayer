@@ -17,7 +17,6 @@
 package com.google.android.exoplayer2.transformer;
 
 import androidx.annotation.Nullable;
-import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
 
 /**
@@ -40,25 +39,10 @@ import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
   void queueInputBuffer() throws TransformationException;
 
   /**
-   * Processes the input data and returns whether more data can be processed by calling this method
-   * again.
+   * Processes the input data and returns whether it may be possible to process more data by calling
+   * this method again.
    */
   boolean processData() throws TransformationException;
-
-  /** Returns the output format of the pipeline if available, and {@code null} otherwise. */
-  @Nullable
-  Format getOutputFormat() throws TransformationException;
-
-  /** Returns an output buffer if the pipeline has produced output, and {@code null} otherwise */
-  @Nullable
-  DecoderInputBuffer getOutputBuffer() throws TransformationException;
-
-  /**
-   * Releases the pipeline's output buffer.
-   *
-   * <p>Should be called when the output buffer from {@link #getOutputBuffer()} is no longer needed.
-   */
-  void releaseOutputBuffer() throws TransformationException;
 
   /** Returns whether the pipeline has ended. */
   boolean isEnded();

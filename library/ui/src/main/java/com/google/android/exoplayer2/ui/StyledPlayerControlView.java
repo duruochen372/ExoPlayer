@@ -59,41 +59,37 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.ExoPlayerLibraryInfo;
-import com.google.android.exoplayer2.ForwardingPlayer;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.Player.Events;
 import com.google.android.exoplayer2.Player.State;
 import com.google.android.exoplayer2.Timeline;
-import com.google.android.exoplayer2.TracksInfo;
-import com.google.android.exoplayer2.TracksInfo.TrackGroupInfo;
+import com.google.android.exoplayer2.Tracks;
 import com.google.android.exoplayer2.source.TrackGroup;
-import com.google.android.exoplayer2.trackselection.TrackSelectionOverrides;
-import com.google.android.exoplayer2.trackselection.TrackSelectionOverrides.TrackSelectionOverride;
+import com.google.android.exoplayer2.trackselection.TrackSelectionOverride;
 import com.google.android.exoplayer2.trackselection.TrackSelectionParameters;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.RepeatModeUtil;
 import com.google.android.exoplayer2.util.Util;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Formatter;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A view for controlling {@link Player} instances.
  *
- * <p>A StyledPlayerControlView can be customized by setting attributes (or calling corresponding
- * methods), or overriding drawables.
+ * <p>A {@code StyledPlayerControlView} can be customized by setting attributes (or calling
+ * corresponding methods), or overriding drawables.
  *
  * <h2>Attributes</h2>
  *
- * The following attributes can be set on a StyledPlayerControlView when used in a layout XML file:
+ * The following attributes can be set on a {@code StyledPlayerControlView} when used in a layout
+ * XML file:
  *
  * <ul>
  *   <li><b>{@code show_timeout}</b> - The time between the last user interaction and the controls
@@ -152,22 +148,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *         <li>Corresponding method: {@link #setTimeBarMinUpdateInterval(int)}
  *         <li>Default: {@link #DEFAULT_TIME_BAR_MIN_UPDATE_INTERVAL_MS}
  *       </ul>
- *   <li><b>{@code controller_layout_id}</b> - Specifies the id of the layout to be inflated. See
- *       below for more details.
- *       <ul>
- *         <li>Corresponding method: None
- *         <li>Default: {@code R.layout.exo_styled_player_control_view}
- *       </ul>
- *   <li>All attributes that can be set on {@link DefaultTimeBar} can also be set on a
- *       StyledPlayerControlView, and will be propagated to the inflated {@link DefaultTimeBar}
- *       unless the layout is overridden to specify a custom {@code exo_progress} (see below).
+ *   <li>All attributes that can be set on {@link DefaultTimeBar} can also be set on a {@code
+ *       StyledPlayerControlView}, and will be propagated to the inflated {@link DefaultTimeBar}.
  * </ul>
  *
  * <h2>Overriding drawables</h2>
  *
- * The drawables used by StyledPlayerControlView (with its default layout file) can be overridden by
- * drawables with the same names defined in your application. The drawables that can be overridden
- * are:
+ * The drawables used by {@code StyledPlayerControlView} can be overridden by drawables with the
+ * same names defined in your application. The drawables that can be overridden are:
  *
  * <ul>
  *   <li><b>{@code exo_styled_controls_play}</b> - The play icon.
@@ -194,7 +182,13 @@ public class StyledPlayerControlView extends FrameLayout {
     ExoPlayerLibraryInfo.registerModule("goog.exo.ui");
   }
 
-  /** Listener to be notified about changes of the visibility of the UI control. */
+  /**
+   * @deprecated Register a {@link StyledPlayerView.ControllerVisibilityListener} via {@link
+   *     StyledPlayerView#setControllerVisibilityListener(StyledPlayerView.ControllerVisibilityListener)}
+   *     instead. Using {@link StyledPlayerControlView} as a standalone class without {@link
+   *     StyledPlayerView} is deprecated.
+   */
+  @Deprecated
   public interface VisibilityListener {
 
     /**
@@ -218,9 +212,12 @@ public class StyledPlayerControlView extends FrameLayout {
   }
 
   /**
-   * Listener to be invoked to inform the fullscreen mode is changed. Application should handle the
-   * fullscreen mode accordingly.
+   * @deprecated Register a {@link StyledPlayerView.FullscreenButtonClickListener} via {@link
+   *     StyledPlayerView#setFullscreenButtonClickListener(StyledPlayerView.FullscreenButtonClickListener)}
+   *     instead. Using {@link StyledPlayerControlView} as a standalone class without {@link
+   *     StyledPlayerView} is deprecated.
    */
+  @Deprecated
   public interface OnFullScreenModeChangedListener {
     /**
      * Called to indicate a fullscreen mode change.
@@ -249,8 +246,23 @@ public class StyledPlayerControlView extends FrameLayout {
   private static final int SETTINGS_PLAYBACK_SPEED_POSITION = 0;
   private static final int SETTINGS_AUDIO_TRACK_SELECTION_POSITION = 1;
 
+  private final StyledPlayerControlViewLayoutManager controlViewLayoutManager;
+  private final Resources resources;
   private final ComponentListener componentListener;
+
+  @SuppressWarnings("deprecation") // Using the deprecated type for now.
   private final CopyOnWriteArrayList<VisibilityListener> visibilityListeners;
+
+  private final RecyclerView settingsView;
+  private final SettingsAdapter settingsAdapter;
+  private final PlaybackSpeedAdapter playbackSpeedAdapter;
+  private final TextTrackSelectionAdapter textTrackSelectionAdapter;
+  private final AudioTrackSelectionAdapter audioTrackSelectionAdapter;
+  // TODO(insun): Add setTrackNameProvider to use customized track name provider.
+  private final TrackNameProvider trackNameProvider;
+  private final PopupWindow settingsWindow;
+  private final int settingsWindowMargin;
+
   @Nullable private final View previousButton;
   @Nullable private final View nextButton;
   @Nullable private final View playPauseButton;
@@ -261,6 +273,12 @@ public class StyledPlayerControlView extends FrameLayout {
   @Nullable private final ImageView repeatToggleButton;
   @Nullable private final ImageView shuffleButton;
   @Nullable private final View vrButton;
+  @Nullable private final ImageView subtitleButton;
+  @Nullable private final ImageView fullScreenButton;
+  @Nullable private final ImageView minimalFullScreenButton;
+  @Nullable private final View settingsButton;
+  @Nullable private final View playbackSpeedButton;
+  @Nullable private final View audioTrackButton;
   @Nullable private final TextView durationView;
   @Nullable private final TextView positionView;
   @Nullable private final TimeBar timeBar;
@@ -309,27 +327,7 @@ public class StyledPlayerControlView extends FrameLayout {
   private boolean[] extraPlayedAdGroups;
   private long currentWindowOffset;
 
-  private StyledPlayerControlViewLayoutManager controlViewLayoutManager;
-  private Resources resources;
-
-  private RecyclerView settingsView;
-  private SettingsAdapter settingsAdapter;
-  private PlaybackSpeedAdapter playbackSpeedAdapter;
-  private PopupWindow settingsWindow;
   private boolean needToHideBars;
-  private int settingsWindowMargin;
-
-  private TextTrackSelectionAdapter textTrackSelectionAdapter;
-  private AudioTrackSelectionAdapter audioTrackSelectionAdapter;
-  // TODO(insun): Add setTrackNameProvider to use customized track name provider.
-  private TrackNameProvider trackNameProvider;
-
-  @Nullable private ImageView subtitleButton;
-  @Nullable private ImageView fullScreenButton;
-  @Nullable private ImageView minimalFullScreenButton;
-  @Nullable private View settingsButton;
-  @Nullable private View playbackSpeedButton;
-  @Nullable private View audioTrackButton;
 
   public StyledPlayerControlView(Context context) {
     this(context, /* attrs= */ null);
@@ -640,9 +638,6 @@ public class StyledPlayerControlView extends FrameLayout {
     if (player != null) {
       player.addListener(componentListener);
     }
-    if (player instanceof ForwardingPlayer) {
-      player = ((ForwardingPlayer) player).getWrappedPlayer();
-    }
     updateAll();
   }
 
@@ -684,20 +679,26 @@ public class StyledPlayerControlView extends FrameLayout {
   }
 
   /**
-   * Adds a {@link VisibilityListener}.
-   *
-   * @param listener The listener to be notified about visibility changes.
+   * @deprecated Register a {@link StyledPlayerView.ControllerVisibilityListener} via {@link
+   *     StyledPlayerView#setControllerVisibilityListener(StyledPlayerView.ControllerVisibilityListener)}
+   *     instead. Using {@link StyledPlayerControlView} as a standalone class without {@link
+   *     StyledPlayerView} is deprecated.
    */
+  @SuppressWarnings("deprecation")
+  @Deprecated
   public void addVisibilityListener(VisibilityListener listener) {
     checkNotNull(listener);
     visibilityListeners.add(listener);
   }
 
   /**
-   * Removes a {@link VisibilityListener}.
-   *
-   * @param listener The listener to be removed.
+   * @deprecated Register a {@link StyledPlayerView.ControllerVisibilityListener} via {@link
+   *     StyledPlayerView#setControllerVisibilityListener(StyledPlayerView.ControllerVisibilityListener)}
+   *     instead. Using {@link StyledPlayerControlView} as a standalone class without {@link
+   *     StyledPlayerView} is deprecated.
    */
+  @SuppressWarnings("deprecation")
+  @Deprecated
   public void removeVisibilityListener(VisibilityListener listener) {
     visibilityListeners.remove(listener);
   }
@@ -896,12 +897,13 @@ public class StyledPlayerControlView extends FrameLayout {
   }
 
   /**
-   * Sets a listener to be called when the fullscreen mode should be changed. A non-null listener
-   * needs to be set in order to display the fullscreen button.
-   *
-   * @param listener The listener to be called. A value of <code>null</code> removes any existing
-   *     listener and hides the fullscreen button.
+   * @deprecated Register a {@link StyledPlayerView.FullscreenButtonClickListener} via {@link
+   *     StyledPlayerView#setFullscreenButtonClickListener(StyledPlayerView.FullscreenButtonClickListener)}
+   *     instead. Using {@link StyledPlayerControlView} as a standalone class without {@link
+   *     StyledPlayerView} is deprecated.
    */
+  @SuppressWarnings("deprecation")
+  @Deprecated
   public void setOnFullScreenModeChangedListener(
       @Nullable OnFullScreenModeChangedListener listener) {
     onFullScreenModeChangedListener = listener;
@@ -937,6 +939,7 @@ public class StyledPlayerControlView extends FrameLayout {
     return getVisibility() == VISIBLE;
   }
 
+  @SuppressWarnings("deprecation") // Calling the deprecated listener for now.
   /* package */ void notifyOnVisibilityChange() {
     for (VisibilityListener visibilityListener : visibilityListeners) {
       visibilityListener.onVisibilityChange(getVisibility());
@@ -1106,40 +1109,41 @@ public class StyledPlayerControlView extends FrameLayout {
     textTrackSelectionAdapter.clear();
     audioTrackSelectionAdapter.clear();
     if (player == null
-        || !player.isCommandAvailable(Player.COMMAND_GET_TRACK_INFOS)
+        || !player.isCommandAvailable(Player.COMMAND_GET_TRACKS)
         || !player.isCommandAvailable(Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS)) {
       return;
     }
-    TracksInfo tracksInfo = player.getCurrentTracksInfo();
-    audioTrackSelectionAdapter.init(
-        gatherSupportedTrackInfosOfType(tracksInfo, C.TRACK_TYPE_AUDIO));
+    Tracks tracks = player.getCurrentTracks();
+    audioTrackSelectionAdapter.init(gatherSupportedTrackInfosOfType(tracks, C.TRACK_TYPE_AUDIO));
     if (controlViewLayoutManager.getShowButton(subtitleButton)) {
-      textTrackSelectionAdapter.init(
-          gatherSupportedTrackInfosOfType(tracksInfo, C.TRACK_TYPE_TEXT));
+      textTrackSelectionAdapter.init(gatherSupportedTrackInfosOfType(tracks, C.TRACK_TYPE_TEXT));
     } else {
       textTrackSelectionAdapter.init(ImmutableList.of());
     }
   }
 
   private ImmutableList<TrackInformation> gatherSupportedTrackInfosOfType(
-      TracksInfo tracksInfo, @C.TrackType int trackType) {
-    ImmutableList.Builder<TrackInformation> tracks = new ImmutableList.Builder<>();
-    List<TrackGroupInfo> trackGroupInfos = tracksInfo.getTrackGroupInfos();
-    for (int trackGroupIndex = 0; trackGroupIndex < trackGroupInfos.size(); trackGroupIndex++) {
-      TrackGroupInfo trackGroupInfo = trackGroupInfos.get(trackGroupIndex);
-      if (trackGroupInfo.getTrackType() != trackType) {
+      Tracks tracks, @C.TrackType int trackType) {
+    ImmutableList.Builder<TrackInformation> trackInfos = new ImmutableList.Builder<>();
+    List<Tracks.Group> trackGroups = tracks.getGroups();
+    for (int trackGroupIndex = 0; trackGroupIndex < trackGroups.size(); trackGroupIndex++) {
+      Tracks.Group trackGroup = trackGroups.get(trackGroupIndex);
+      if (trackGroup.getType() != trackType) {
         continue;
       }
-      TrackGroup trackGroup = trackGroupInfo.getTrackGroup();
       for (int trackIndex = 0; trackIndex < trackGroup.length; trackIndex++) {
-        if (!trackGroupInfo.isTrackSupported(trackIndex)) {
+        if (!trackGroup.isTrackSupported(trackIndex)) {
           continue;
         }
-        String trackName = trackNameProvider.getTrackName(trackGroup.getFormat(trackIndex));
-        tracks.add(new TrackInformation(tracksInfo, trackGroupIndex, trackIndex, trackName));
+        Format trackFormat = trackGroup.getTrackFormat(trackIndex);
+        if ((trackFormat.selectionFlags & C.SELECTION_FLAG_FORCED) != 0) {
+          continue;
+        }
+        String trackName = trackNameProvider.getTrackName(trackFormat);
+        trackInfos.add(new TrackInformation(tracks, trackGroupIndex, trackIndex, trackName));
       }
     }
-    return tracks.build();
+    return trackInfos.build();
   }
 
   private void updateTimeline() {
@@ -1283,7 +1287,7 @@ public class StyledPlayerControlView extends FrameLayout {
     settingsWindow.setHeight(height);
   }
 
-  private void displaySettingsWindow(RecyclerView.Adapter<?> adapter) {
+  private void displaySettingsWindow(RecyclerView.Adapter<?> adapter, View anchorView) {
     settingsView.setAdapter(adapter);
 
     updateSettingsWindowSize();
@@ -1295,7 +1299,7 @@ public class StyledPlayerControlView extends FrameLayout {
     int xoff = getWidth() - settingsWindow.getWidth() - settingsWindowMargin;
     int yoff = -settingsWindow.getHeight() - settingsWindowMargin;
 
-    settingsWindow.showAsDropDown(this, xoff, yoff);
+    settingsWindow.showAsDropDown(anchorView, xoff, yoff);
   }
 
   private void setPlaybackSpeed(float speed) {
@@ -1377,9 +1381,9 @@ public class StyledPlayerControlView extends FrameLayout {
 
   private void onSettingViewClicked(int position) {
     if (position == SETTINGS_PLAYBACK_SPEED_POSITION) {
-      displaySettingsWindow(playbackSpeedAdapter);
+      displaySettingsWindow(playbackSpeedAdapter, checkNotNull(settingsButton));
     } else if (position == SETTINGS_AUDIO_TRACK_SELECTION_POSITION) {
-      displaySettingsWindow(audioTrackSelectionAdapter);
+      displaySettingsWindow(audioTrackSelectionAdapter, checkNotNull(settingsButton));
     } else {
       settingsWindow.dismiss();
     }
@@ -1673,16 +1677,16 @@ public class StyledPlayerControlView extends FrameLayout {
         player.setShuffleModeEnabled(!player.getShuffleModeEnabled());
       } else if (settingsButton == view) {
         controlViewLayoutManager.removeHideCallbacks();
-        displaySettingsWindow(settingsAdapter);
+        displaySettingsWindow(settingsAdapter, settingsButton);
       } else if (playbackSpeedButton == view) {
         controlViewLayoutManager.removeHideCallbacks();
-        displaySettingsWindow(playbackSpeedAdapter);
+        displaySettingsWindow(playbackSpeedAdapter, playbackSpeedButton);
       } else if (audioTrackButton == view) {
         controlViewLayoutManager.removeHideCallbacks();
-        displaySettingsWindow(audioTrackSelectionAdapter);
+        displaySettingsWindow(audioTrackSelectionAdapter, audioTrackButton);
       } else if (subtitleButton == view) {
         controlViewLayoutManager.removeHideCallbacks();
-        displaySettingsWindow(textTrackSelectionAdapter);
+        displaySettingsWindow(textTrackSelectionAdapter, subtitleButton);
       }
     }
   }
@@ -1800,7 +1804,13 @@ public class StyledPlayerControlView extends FrameLayout {
       if (position < playbackSpeedTexts.length) {
         holder.textView.setText(playbackSpeedTexts[position]);
       }
-      holder.checkView.setVisibility(position == selectedIndex ? VISIBLE : INVISIBLE);
+      if (position == selectedIndex) {
+        holder.itemView.setSelected(true);
+        holder.checkView.setVisibility(VISIBLE);
+      } else {
+        holder.itemView.setSelected(false);
+        holder.checkView.setVisibility(INVISIBLE);
+      }
       holder.itemView.setOnClickListener(
           v -> {
             if (position != selectedIndex) {
@@ -1818,19 +1828,18 @@ public class StyledPlayerControlView extends FrameLayout {
 
   private static final class TrackInformation {
 
-    public final TrackGroupInfo trackGroupInfo;
+    public final Tracks.Group trackGroup;
     public final int trackIndex;
     public final String trackName;
 
-    public TrackInformation(
-        TracksInfo tracksInfo, int trackGroupIndex, int trackIndex, String trackName) {
-      this.trackGroupInfo = tracksInfo.getTrackGroupInfos().get(trackGroupIndex);
+    public TrackInformation(Tracks tracks, int trackGroupIndex, int trackIndex, String trackName) {
+      this.trackGroup = tracks.getGroups().get(trackGroupIndex);
       this.trackIndex = trackIndex;
       this.trackName = trackName;
     }
 
     public boolean isSelected() {
-      return trackGroupInfo.isTrackSelected(trackIndex);
+      return trackGroup.isTrackSelected(trackIndex);
     }
   }
 
@@ -1874,11 +1883,8 @@ public class StyledPlayerControlView extends FrameLayout {
               player.setTrackSelectionParameters(
                   trackSelectionParameters
                       .buildUpon()
-                      .setDisabledTrackTypes(
-                          new ImmutableSet.Builder<@C.TrackType Integer>()
-                              .addAll(trackSelectionParameters.disabledTrackTypes)
-                              .add(C.TRACK_TYPE_TEXT)
-                              .build())
+                      .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                      .setIgnoredTextSelectionFlags(~C.SELECTION_FLAG_FORCED)
                       .build());
               settingsWindow.dismiss();
             }
@@ -1908,7 +1914,7 @@ public class StyledPlayerControlView extends FrameLayout {
       holder.textView.setText(R.string.exo_track_selection_auto);
       // hasSelectionOverride is true means there is an explicit track selection, not "Auto".
       TrackSelectionParameters parameters = checkNotNull(player).getTrackSelectionParameters();
-      boolean hasSelectionOverride = hasSelectionOverride(parameters.trackSelectionOverrides);
+      boolean hasSelectionOverride = hasSelectionOverride(parameters);
       holder.checkView.setVisibility(hasSelectionOverride ? INVISIBLE : VISIBLE);
       holder.itemView.setOnClickListener(
           v -> {
@@ -1917,21 +1923,12 @@ public class StyledPlayerControlView extends FrameLayout {
             }
             TrackSelectionParameters trackSelectionParameters =
                 player.getTrackSelectionParameters();
-            TrackSelectionOverrides trackSelectionOverrides =
-                trackSelectionParameters
-                    .trackSelectionOverrides
-                    .buildUpon()
-                    .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
-                    .build();
-            Set<@C.TrackType Integer> disabledTrackTypes =
-                new HashSet<>(trackSelectionParameters.disabledTrackTypes);
-            disabledTrackTypes.remove(C.TRACK_TYPE_AUDIO);
             castNonNull(player)
                 .setTrackSelectionParameters(
                     trackSelectionParameters
                         .buildUpon()
-                        .setTrackSelectionOverrides(trackSelectionOverrides)
-                        .setDisabledTrackTypes(disabledTrackTypes)
+                        .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, /* disabled= */ false)
                         .build());
             settingsAdapter.setSubTextAtPosition(
                 SETTINGS_AUDIO_TRACK_SELECTION_POSITION,
@@ -1940,10 +1937,10 @@ public class StyledPlayerControlView extends FrameLayout {
           });
     }
 
-    private boolean hasSelectionOverride(TrackSelectionOverrides trackSelectionOverrides) {
+    private boolean hasSelectionOverride(TrackSelectionParameters trackSelectionParameters) {
       for (int i = 0; i < tracks.size(); i++) {
-        TrackGroup trackGroup = tracks.get(i).trackGroupInfo.getTrackGroup();
-        if (trackSelectionOverrides.getOverride(trackGroup) != null) {
+        TrackGroup trackGroup = tracks.get(i).trackGroup.getMediaTrackGroup();
+        if (trackSelectionParameters.overrides.containsKey(trackGroup)) {
           return true;
         }
       }
@@ -1966,7 +1963,7 @@ public class StyledPlayerControlView extends FrameLayout {
             getResources().getString(R.string.exo_track_selection_none));
         // TODO(insun) : Make the audio item in main settings (settingsAdapater)
         //  to be non-clickable.
-      } else if (!hasSelectionOverride(params.trackSelectionOverrides)) {
+      } else if (!hasSelectionOverride(params)) {
         settingsAdapter.setSubTextAtPosition(
             SETTINGS_AUDIO_TRACK_SELECTION_POSITION,
             getResources().getString(R.string.exo_track_selection_auto));
@@ -2008,6 +2005,7 @@ public class StyledPlayerControlView extends FrameLayout {
 
     @Override
     public void onBindViewHolder(SubSettingViewHolder holder, int position) {
+      @Nullable Player player = StyledPlayerControlView.this.player;
       if (player == null) {
         return;
       }
@@ -2015,37 +2013,24 @@ public class StyledPlayerControlView extends FrameLayout {
         onBindViewHolderAtZeroPosition(holder);
       } else {
         TrackInformation track = tracks.get(position - 1);
-        TrackGroup trackGroup = track.trackGroupInfo.getTrackGroup();
-        TrackSelectionParameters params = checkNotNull(player).getTrackSelectionParameters();
+        TrackGroup mediaTrackGroup = track.trackGroup.getMediaTrackGroup();
+        TrackSelectionParameters params = player.getTrackSelectionParameters();
         boolean explicitlySelected =
-            params.trackSelectionOverrides.getOverride(trackGroup) != null && track.isSelected();
+            params.overrides.get(mediaTrackGroup) != null && track.isSelected();
         holder.textView.setText(track.trackName);
         holder.checkView.setVisibility(explicitlySelected ? VISIBLE : INVISIBLE);
         holder.itemView.setOnClickListener(
             v -> {
-              if (player == null) {
-                return;
-              }
               TrackSelectionParameters trackSelectionParameters =
                   player.getTrackSelectionParameters();
-              TrackSelectionOverrides overrides =
+              player.setTrackSelectionParameters(
                   trackSelectionParameters
-                      .trackSelectionOverrides
                       .buildUpon()
                       .setOverrideForType(
                           new TrackSelectionOverride(
-                              trackGroup, ImmutableList.of(track.trackIndex)))
-                      .build();
-              Set<@C.TrackType Integer> disabledTrackTypes =
-                  new HashSet<>(trackSelectionParameters.disabledTrackTypes);
-              disabledTrackTypes.remove(track.trackGroupInfo.getTrackType());
-              checkNotNull(player)
-                  .setTrackSelectionParameters(
-                      trackSelectionParameters
-                          .buildUpon()
-                          .setTrackSelectionOverrides(overrides)
-                          .setDisabledTrackTypes(disabledTrackTypes)
-                          .build());
+                              mediaTrackGroup, ImmutableList.of(track.trackIndex)))
+                      .setTrackTypeDisabled(track.trackGroup.getType(), /* disabled= */ false)
+                      .build());
               onTrackSelection(track.trackName);
               settingsWindow.dismiss();
             });

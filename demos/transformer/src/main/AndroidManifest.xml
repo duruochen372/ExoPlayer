@@ -29,6 +29,7 @@
       android:label="@string/app_name"
       android:theme="@style/Theme.AppCompat"
       android:taskAffinity=""
+      android:requestLegacyExternalStorage="true"
       tools:targetApi="29">
     <activity android:name=".ConfigurationActivity"
         android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
@@ -48,6 +49,12 @@
         <data android:scheme="content"/>
         <data android:scheme="asset"/>
         <data android:scheme="file"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="com.google.android.exoplayer2.transformerdemo.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:scheme="content"/>
+        <data android:mimeType="*/*"/>
       </intent-filter>
     </activity>
     <activity android:name=".TransformerActivity"
