@@ -386,6 +386,9 @@ public class DefaultLoadControl implements LoadControl {
   @Override
   public boolean shouldStartPlayback(
       long bufferedDurationUs, float playbackSpeed, boolean rebuffering, long targetLiveOffsetUs) {
+    if (!rebuffering) {
+      Log.d("duruochen", "首帧------判断是否要开始播放:bufferedDurationUs=" + bufferedDurationUs);
+    }
     bufferedDurationUs = Util.getPlayoutDurationForMediaDuration(bufferedDurationUs, playbackSpeed);
     long minBufferDurationUs = rebuffering ? bufferForPlaybackAfterRebufferUs : bufferForPlaybackUs;
     if (targetLiveOffsetUs != C.TIME_UNSET) {

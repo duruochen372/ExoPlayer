@@ -443,6 +443,8 @@ public abstract class BaseRenderer implements Renderer, RendererCapabilities {
                 .build();
         formatHolder.format = format;
       }
+    } else if (result == C.RESULT_NOTHING_READ) {
+      Log.d("duruochen", "读完了，空的");
     }
     return result;
   }

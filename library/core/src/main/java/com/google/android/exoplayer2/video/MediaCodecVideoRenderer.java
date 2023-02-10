@@ -903,20 +903,20 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
   @Override  //处理解码后的数据
   protected boolean processOutputBuffer(
       long positionUs, //当前正在渲染的时间
-      long elapsedRealtimeUs,
+      long elapsedRealtimeUs, //设备从启动到现在的时间
       @Nullable MediaCodecAdapter codec,
       @Nullable ByteBuffer buffer,
       int bufferIndex,
       int bufferFlags,
       int sampleCount,
-      long bufferPresentationTimeUs,
+      long bufferPresentationTimeUs, //当前解码帧的pts
       boolean isDecodeOnlyBuffer,
       boolean isLastBuffer,
       Format format)
       throws ExoPlaybackException {
     Assertions.checkNotNull(codec); // Can not render video without codec
 
-//    Log.d("duruochen", "处理解码后的数据");
+    Log.d("duruochen", "处理解码后的数据");
     if (initialPositionUs == C.TIME_UNSET) {
       initialPositionUs = positionUs;
     }
@@ -942,6 +942,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     // Calculate how early we are. In other words, the realtime duration that needs to elapse whilst
     // the renderer is started before the frame should be rendered. A negative value means that
     // we're already late.
+    //计算当前解码的帧和当前正在渲染的帧的时间差
     long earlyUs = (long) ((bufferPresentationTimeUs - positionUs) / playbackSpeed);
     if (isStarted) {
       // Account for the elapsed time since the start of this iteration of the rendering loop.
@@ -950,7 +951,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
 
     if (surface == dummySurface) {
       // Skip frames in sync with playback, so we'll be at the right frame if the mode changes.
-      if (isBufferLate(earlyUs)) {  //晚了直接丢帧
+      if (isBufferLate(earlyUs)) {  //晚了30ms直接丢帧
         Log.d("duruochen", "晚了直接丢帧");
         skipOutputBuffer(codec, bufferIndex, presentationTimeUs);
         updateVideoFrameProcessingOffsetCounters(earlyUs);
@@ -959,6 +960,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
       return false;
     }
 
+    //距离上次送显渲染过去了多久
     long elapsedSinceLastRenderUs = elapsedRealtimeNowUs - lastRenderRealtimeUs;
     boolean shouldRenderFirstFrame =
         !renderedFirstFrameAfterEnable
@@ -987,11 +989,14 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     }
 
     // Compute the buffer's desired release time in nanoseconds.
+    // 用当前系统时间加上前面计算出来的时间间隔，即为初步计算出来的预计送显时间
     long systemTimeNs = System.nanoTime();
     long unadjustedFrameReleaseTimeNs = systemTimeNs + (earlyUs * 1000);
 
     // Apply a timestamp adjustment, if there is one.
+    //　对预计送显时间进行调整, 得到实际送显时间
     long adjustedReleaseTimeNs = frameReleaseHelper.adjustReleaseTime(unadjustedFrameReleaseTimeNs);
+    //计算实际送显时间与当前系统时间之间的时间差, 如果时间差为正值, 代表视频帧应该在当前系统时间之后被显示,换言之,代表视频帧来早了, 反之, 如果时间差为负值, 代表视频帧应该在当前系统时间之前被显示, 换言之, 代表视频帧来晚了
     earlyUs = (adjustedReleaseTimeNs - systemTimeNs) / 1000;
 
     boolean treatDroppedBuffersAsSkipped = joiningDeadlineMs != C.TIME_UNSET;
@@ -999,6 +1004,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
         && maybeDropBuffersToKeyframe(positionUs, treatDroppedBuffersAsSkipped)) {
       return false;
     } else if (shouldDropOutputBuffer(earlyUs, elapsedRealtimeUs, isLastBuffer)) {
+      //将上面计算出来的时间差与预设的门限值进行对比, 如果超过门限值, 即该视频帧来的太晚了, 则将这一帧丢掉, 不予显示
       Log.d("duruochen", "太晚了  直接丢掉");
       if (treatDroppedBuffersAsSkipped) {
         skipOutputBuffer(codec, bufferIndex, presentationTimeUs);
@@ -1012,6 +1018,7 @@ public class MediaCodecVideoRenderer extends MediaCodecRenderer {
     if (Util.SDK_INT >= 21) {
       // Let the underlying framework time the release.
       if (earlyUs < 50000) {
+        //视频帧来的太晚会被丢掉, 来的太早同样有问题, 按照预设的门限值, 视频帧比预定时间来的早了50ms以上, 则进入下一个间隔为10ms的循环,再继续判断, 否则, 将视频帧送显
         notifyFrameMetadataListener(presentationTimeUs, adjustedReleaseTimeNs, format);
         renderOutputBufferV21(codec, bufferIndex, presentationTimeUs, adjustedReleaseTimeNs);
         updateVideoFrameProcessingOffsetCounters(earlyUs);

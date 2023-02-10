@@ -251,6 +251,10 @@ import java.lang.reflect.Method;
   }
 
   public long getCurrentPositionUs(boolean sourceEnded) {
+    /* 三件重要的事：*/
+    /* 1.根据AudioTrack.getPlaybackHeadPosition的值来计算平滑抖动值  */
+    /* 2.校验timestamp */
+    /* 3.校验latency(延迟) */
     if (Assertions.checkNotNull(this.audioTrack).getPlayState() == PLAYSTATE_PLAYING) {
       maybeSampleSyncParams();
     }
@@ -261,8 +265,10 @@ import java.lang.reflect.Method;
     long positionUs;
     AudioTimestampPoller audioTimestampPoller = Assertions.checkNotNull(this.audioTimestampPoller);
     boolean useGetTimestampMode = audioTimestampPoller.hasAdvancingTimestamp();
+    /* if分支为设备支持的timestamp模式,else为AudioTrack.getPlaybackHeadPosition获取的处理方式 */
+    /* 使用手机实测走的if分支 */
     /* 通过getTimestamp来获取pts */
-    if (useGetTimestampMode) {
+    if (useGetTimestampMode) {  //exoplayer是每10s去调用一次getTimestamp来获取底层精确的pts值的
       // Calculate the speed-adjusted position using the timestamp (which may be in the future).
       /* 得到最新调用getTimestamp()接口时拿到的写入帧数 */
       long timestampPositionFrames = audioTimestampPoller.getTimestampPositionFrames();
@@ -275,6 +281,7 @@ import java.lang.reflect.Method;
           Util.getMediaDurationForPlayoutDuration(elapsedSinceTimestampUs, audioTrackPlaybackSpeed);
       /* 得到最新的音频时间戳 */
       positionUs = timestampPositionUs + elapsedSinceTimestampUs;
+      //这段代码实际上可以这么理解，每10s更新一次基准时间戳，然后在基准时间戳的基础上不断累加校准过后的时间差值，就是最终送给视频做同步的音频pts。
     } else {
       if (playheadOffsetCount == 0) {
         // The AudioTrack has started, but we don't have any samples to compute a smoothed position.
@@ -288,6 +295,7 @@ import java.lang.reflect.Method;
       if (!sourceEnded) {
         positionUs = max(0, positionUs - latencyUs);
       }
+      //else的代码就很好理解了，就是调用AudioTrack.getPlaybackHeadPosition()拿到值之后，做一个平滑处理，然后再减去latency就行了
     }
 
     if (lastSampleUsedGetTimestampMode != useGetTimestampMode) {

@@ -124,6 +124,7 @@ import com.google.android.exoplayer2.util.StandaloneMediaClock;
    * @param isReadingAhead Whether the renderers are reading ahead.
    */
   public long syncAndGetPositionUs(boolean isReadingAhead) {
+    //isReadingAhead：如果码流里面解析出来有带pts，那么将会使用码流中的pts来进行后续的同步处理，如果没有，就使用exoplayer自己维护的系统时间来进行同步，显然，正常情况下，都是使用码流中的pts来处理的
     syncClocks(isReadingAhead);
     return getPositionUs();
   }

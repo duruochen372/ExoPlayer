@@ -69,7 +69,7 @@ public final class StandaloneMediaClock implements MediaClock {
   }
 
   @Override
-  public long getPositionUs() {
+  public long getPositionUs() { //上次的时间 + 距离上次计算的时间差
     long positionUs = baseUs;
     if (started) {
       long elapsedSinceBaseMs = clock.elapsedRealtime() - baseElapsedMs;

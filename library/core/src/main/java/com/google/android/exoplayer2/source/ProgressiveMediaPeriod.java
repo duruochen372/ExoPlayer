@@ -404,7 +404,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
     if (largestQueuedTimestampUs == Long.MAX_VALUE) {
       largestQueuedTimestampUs = getLargestQueuedTimestampUs();
     }
-    Log.d("duruochen", "getBufferedPositionUs当前下载到的位置:" + largestQueuedTimestampUs + "  是否选择:" + (largestQueuedTimestampUs != Long.MIN_VALUE));
+//    Log.d("duruochen", "getBufferedPositionUs当前下载到的位置:" + largestQueuedTimestampUs + "  是否选择:" + (largestQueuedTimestampUs != Long.MIN_VALUE));
     return largestQueuedTimestampUs == Long.MIN_VALUE
         ? lastSeekPositionUs
         : largestQueuedTimestampUs;
@@ -1010,7 +1010,9 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
         try {
           long position = positionHolder.position;
           dataSpec = buildDataSpec(position);
+          Log.d("duruochen777", "进行网络请求");
           length = dataSource.open(dataSpec);  //进行网络请求
+          Log.d("duruochen777", "网络请求结束");
           if (length != C.LENGTH_UNSET) {
             length += position;
           }
@@ -1046,7 +1048,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
             result = progressiveMediaExtractor.read(positionHolder);  //读取流媒体数据
             long currentInputPosition = progressiveMediaExtractor.getCurrentInputPosition();
             if (currentInputPosition > position + continueLoadingCheckIntervalBytes) {  //每次读1MB
-//              Log.d("duruochen666", "读完了1MB:");
+              Log.d("duruochen666", "读完了1MB:");
               position = currentInputPosition;
               loadCondition.close();
               handler.post(onContinueLoadingRequestedRunnable);

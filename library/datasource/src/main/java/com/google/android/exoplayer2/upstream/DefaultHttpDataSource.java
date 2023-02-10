@@ -356,11 +356,19 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
     String responseMessage;
     HttpURLConnection connection;
     try {
+      Log.d("duruochen777", "makeConnection");
       this.connection = makeConnection(dataSpec);
       connection = this.connection;
+      Log.d("duruochen777", "getResponseCode");
+
       responseCode = connection.getResponseCode();
+      Log.d("duruochen777", "getResponseCode=" + responseCode);
+
+      Log.d("duruochen777", "getResponseMessage");
+
       responseMessage = connection.getResponseMessage();
     } catch (IOException e) {
+      Log.d("duruochen777", "IOException777:" + e.getMessage());
       closeConnectionQuietly();
       throw HttpDataSourceException.createForIOException(
           e, dataSpec, HttpDataSourceException.TYPE_OPEN);
@@ -600,8 +608,8 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
       Map<String, String> requestParameters)
       throws IOException {
     HttpURLConnection connection = openConnection(url);
-    connection.setConnectTimeout(connectTimeoutMillis);
-    connection.setReadTimeout(readTimeoutMillis);
+    connection.setConnectTimeout(3000);
+    connection.setReadTimeout(3000);
 
     Map<String, String> requestHeaders = new HashMap<>();
     if (defaultRequestProperties != null) {
@@ -618,7 +626,7 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
     if (rangeHeader != null) {
       connection.setRequestProperty(HttpHeaders.RANGE, rangeHeader);
     }
-    Log.d("duruochen", "HttpURLConnection网络请求:" + url + "  请求范围:" + rangeHeader);
+    Log.d("duruochen777", "HttpURLConnection网络请求:" + url + "  请求范围:" + rangeHeader);
     if (userAgent != null) {
       connection.setRequestProperty(HttpHeaders.USER_AGENT, userAgent);
     }
@@ -629,12 +637,20 @@ public class DefaultHttpDataSource extends BaseDataSource implements HttpDataSou
 
     if (httpBody != null) {
       connection.setFixedLengthStreamingMode(httpBody.length);
-      connection.connect();
+      try {
+        connection.connect();
+      } catch (Exception e) {
+        Log.d("duruochen777", "异常啦1:" + e.getMessage());
+      }
       OutputStream os = connection.getOutputStream();
       os.write(httpBody);
       os.close();
     } else {
-      connection.connect();
+      try {
+        connection.connect();
+      } catch (Exception e) {
+        Log.d("duruochen777", "异常啦2:" + e.getMessage());
+      }
     }
     return connection;
   }

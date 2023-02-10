@@ -920,6 +920,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                 Player.DISCONTINUITY_REASON_INTERNAL);
       }
     } else {
+      //计算当前正在渲染的位置
       rendererPositionUs =
           mediaClock.syncAndGetPositionUs(
               /* isReadingAhead= */ playingPeriodHolder != queue.getReadingPeriod());

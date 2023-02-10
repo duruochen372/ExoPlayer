@@ -79,12 +79,12 @@ import java.util.List;
    * Position up to which media is buffered in {@link #loadingMediaPeriodId) relative to the start
    * of the associated period in the {@link #timeline}, in microseconds.
    */
-  public volatile long bufferedPositionUs;
+  public volatile long bufferedPositionUs; //下载到哪个位置了
   /**
    * Total duration of buffered media from {@link #positionUs} to {@link #bufferedPositionUs}
    * including all ads.
    */
-  public volatile long totalBufferedDurationUs;
+  public volatile long totalBufferedDurationUs; //下载的位置-正在渲染的位置
   /**
    * Current playback position in {@link #periodId} relative to the start of the associated period
    * in the {@link #timeline}, in microseconds.

@@ -423,16 +423,21 @@ public final class Loader implements LoaderErrorThrower {
           sendEmptyMessage(MSG_FINISH);
         }
       } catch (IOException e) {
+        Log.d("duruochen777", "IOException：" + e.getMessage());
         if (!released) {
           obtainMessage(MSG_IO_EXCEPTION, e).sendToTarget();
         }
       } catch (Exception e) {
+        Log.d("duruochen777", "Exception：" + e.getMessage());
+
         // This should never happen, but handle it anyway.
         if (!released) {
           Log.e(TAG, "Unexpected exception loading stream", e);
           obtainMessage(MSG_IO_EXCEPTION, new UnexpectedLoaderException(e)).sendToTarget();
         }
       } catch (OutOfMemoryError e) {
+        Log.d("duruochen777", "OutOfMemoryError：" + e.getMessage());
+
         // This can occur if a stream is malformed in a way that causes an extractor to think it
         // needs to allocate a large amount of memory. We don't want the process to die in this
         // case, but we do want the playback to fail.
@@ -441,6 +446,8 @@ public final class Loader implements LoaderErrorThrower {
           obtainMessage(MSG_IO_EXCEPTION, new UnexpectedLoaderException(e)).sendToTarget();
         }
       } catch (Error e) {
+        Log.d("duruochen777", "Error：" + e.getMessage());
+
         // We'd hope that the platform would shut down the process if an Error is thrown here, but
         // the executor may catch the error (b/20616433). Throw it here, but also pass and throw it
         // from the handler thread so the process dies even if the executor behaves in this way.

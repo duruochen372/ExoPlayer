@@ -315,6 +315,8 @@ public abstract class DecoderAudioRenderer<
         // Can happen with dequeueOutputBuffer, dequeueInputBuffer, queueInputBuffer
         Log.e(TAG, "Audio codec error", e);
         eventDispatcher.audioCodecError(e);
+        Log.e("duruochen", "Audio codec error", e);
+
         throw createRendererException(e, inputFormat, PlaybackException.ERROR_CODE_DECODING_FAILED);
       } catch (AudioSink.ConfigurationException e) {
         throw createRendererException(

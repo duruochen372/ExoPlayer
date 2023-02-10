@@ -1073,7 +1073,7 @@ public interface Player {
    * The player is able to immediately play from its current position. The player will be playing if
    * {@link #getPlayWhenReady()} is true, and paused otherwise.
    */
-  int STATE_READY = 3;
+  int STATE_READY = 3; //准备就绪，可以播放
   /** The player has finished playing the media. */
   int STATE_ENDED = 4;
 

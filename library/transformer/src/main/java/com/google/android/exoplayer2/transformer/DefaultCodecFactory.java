@@ -30,6 +30,7 @@ import android.view.Surface;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MediaFormatUtil;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.TraceUtil;
@@ -304,6 +305,7 @@ import org.checkerframework.checker.nullness.qual.RequiresNonNull;
               : TransformationException.ERROR_CODE_ENCODER_INIT_FAILED);
     }
     if (cause instanceof IllegalArgumentException) {
+      Log.d("duruochen", "抛异常啦！！！" + android.util.Log.getStackTraceString(new Throwable()));
       return TransformationException.createForCodec(
           cause,
           componentName,

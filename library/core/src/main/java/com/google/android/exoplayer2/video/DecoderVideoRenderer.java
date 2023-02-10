@@ -217,6 +217,8 @@ public abstract class DecoderVideoRenderer extends BaseRenderer {
       } catch (DecoderException e) {
         Log.e(TAG, "Video codec error", e);
         eventDispatcher.videoCodecError(e);
+        Log.e("duruochen", "Video codec error", e);
+
         throw createRendererException(e, inputFormat, PlaybackException.ERROR_CODE_DECODING_FAILED);
       }
       decoderCounters.ensureUpdated();

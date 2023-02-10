@@ -2485,6 +2485,7 @@ import java.util.concurrent.TimeoutException;
       }
     }
     this.videoOutput = videoOutput;
+    Log.d("duruochen111", "set videooutput:" +  android.util.Log.getStackTraceString(new Throwable()));
     if (messageDeliveryTimedOut) {
       stopInternal(
           /* reset= */ false,

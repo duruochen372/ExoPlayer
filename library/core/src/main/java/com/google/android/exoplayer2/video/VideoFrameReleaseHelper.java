@@ -246,7 +246,7 @@ public final class VideoFrameReleaseHelper {
    * @return The adjusted frame release timestamp, in nanoseconds and in the same time base as
    *     {@link System#nanoTime()}.
    */
-  public long adjustReleaseTime(long releaseTimeNs) {
+  public long adjustReleaseTime(long releaseTimeNs) { //调整实际送显时间
     // Until we know better, the adjustment will be a no-op.
     long adjustedReleaseTimeNs = releaseTimeNs;
 
@@ -394,6 +394,7 @@ public final class VideoFrameReleaseHelper {
     }
   }
 
+  //寻找距离当前送显时间最近的vsync时间点
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
     long vsyncCount = (releaseTime - sampledVsyncTime) / vsyncDuration;
     long snappedTimeNs = sampledVsyncTime + (vsyncDuration * vsyncCount);

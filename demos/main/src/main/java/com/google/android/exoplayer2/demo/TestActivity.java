@@ -1,11 +1,18 @@
 package com.google.android.exoplayer2.demo;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -30,6 +37,8 @@ import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.video.VideoSize;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * 类的大体描述放在这里。
@@ -47,15 +56,24 @@ public class TestActivity extends AppCompatActivity {
 
   private ExoPlayer mExoPlayer;
 
+  private String TAG = "TestActivity";
+
 //  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/284707-1046357_translow.flv";  //个人直播
 //  private String mPlayUrl = "http://live.test.xmc.tx.l1.xmcdn.com/live/3-2-842650-765008-317012.flv"; //obs推流
-  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/838707-1046365_translow.flv"; //pc使用obs
+//  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/838707-1049699.flv?txSecret=2102f8e4c6492984897b61e29e2bcbf6&txTime=631330E2&liveType=2&token=a5728eda9c2843a0a83926f64184ffec&txDelayTime=7&userId=1173284";
+
+  private String mPlayUrl = "http://live.tx.l1.xmcdn.com/live/6350975-22838614.flv";
+
 
   private TextureView mTextureView;
+  private SurfaceView mSurfaceView;
+  private ImageView mIv;
   private RelativeLayout.LayoutParams small =  new RelativeLayout.LayoutParams(500, 500);
   private RelativeLayout.LayoutParams large = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
   private boolean isSmall = false;
   private boolean isStart = true;
+
+  private Handler mHandler;
 
   @Override
   protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -63,12 +81,16 @@ public class TestActivity extends AppCompatActivity {
     setContentView(R.layout.activity_video);
     mPlayerView = findViewById(R.id.player_view);
     mTextureView = new TextureView(this);
+    mSurfaceView = new SurfaceView(this);
+    mIv = findViewById(R.id.image);
+
+    mHandler = new Handler(Looper.getMainLooper());
 
 //    Log.d("duruochen", "manifest_string=" + manifest_string);
 
 
     RelativeLayout rootView = findViewById(R.id.video_root_fl);
-    rootView.addView(mTextureView, small);
+    rootView.addView(mSurfaceView, large);
 
     mExoPlayer = new ExoPlayer.Builder(this).build();
 //    mPlayerView.setPlayer(mExoPlayer);
@@ -79,7 +101,49 @@ public class TestActivity extends AppCompatActivity {
     mExoPlayer.prepare();
 // Start the playback.
     mExoPlayer.play();
-    mExoPlayer.setVideoTextureView(mTextureView);
+    mSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+      @Override
+      public void surfaceCreated(@NonNull SurfaceHolder holder) {
+        mExoPlayer.setVideoSurfaceView(mSurfaceView);
+      }
+
+      @Override
+      public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+
+      }
+
+      @Override
+      public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+
+      }
+    });
+
+    Log.d("duruochen111", "aaa");
+    mHandler.postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        rootView.addView(mTextureView, large);
+
+
+//        mSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+//          @Override
+//          public void surfaceCreated(@NonNull SurfaceHolder holder) {
+//            mExoPlayer.setVideoSurfaceView(mSurfaceView);
+//          }
+//
+//          @Override
+//          public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width,
+//              int height) {
+//
+//          }
+//
+//          @Override
+//          public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
+//
+//          }
+//        });
+      }
+    }, 10000);
 
     findViewById(R.id.video_size_btn).setOnClickListener(new View.OnClickListener() {
       @Override
@@ -94,14 +158,16 @@ public class TestActivity extends AppCompatActivity {
       @Override
       public void onClick(View v) {
         if (isStart) {
-          mExoPlayer.pause();
+          mExoPlayer.stop();
         } else {
+          MediaItem mediaItem = MediaItem.fromUri(mPlayUrl);
+          mExoPlayer.setMediaItem(mediaItem);
+          mExoPlayer.prepare();
           mExoPlayer.play();
         }
         isStart = !isStart;
       }
     });
-
 
 
 
@@ -111,10 +177,10 @@ public class TestActivity extends AppCompatActivity {
       public void onPlaybackStateChanged(@Player.State int playbackState) {
         switch (playbackState) {
            case Player.STATE_BUFFERING:
-             Log.d("duruochen", "开始缓冲");
+             Log.d(TAG, "开始缓冲");
              break;
           case Player.STATE_READY:
-            Log.d("duruochen", "结束缓冲   缓冲区大小:" + mExoPlayer.getTotalBufferedDuration());
+            Log.d(TAG, "STATE_READY   缓冲区大小:" + mExoPlayer.getTotalBufferedDuration());
             break;
         }
       }
@@ -123,7 +189,7 @@ public class TestActivity extends AppCompatActivity {
       @Override
       public void onPlayerError(PlaybackException error) {
 
-        Log.d("duruochen", "播放失败:" + error);
+        Log.d("duruochen", "播放失败:" + error + "   " + android.util.Log.getStackTraceString(new Throwable()));
         Toast.makeText(TestActivity.this, "播放失败", Toast.LENGTH_SHORT).show();
       }
 
@@ -134,19 +200,77 @@ public class TestActivity extends AppCompatActivity {
 
       @Override
       public void onVideoSizeChanged(VideoSize videoSize) {
-        Log.d("duruochen", "onVideoSizeChanged:width=" + videoSize.width + "   height=" + videoSize.height);
-        mTextureView.post(new Runnable() {
+        Log.d(TAG, "onVideoSizeChanged:width=" + videoSize.width + "   height=" + videoSize.height);
+        mHandler.post(new Runnable() {
           @Override
           public void run() {
-            mTextureView.getLayoutParams().width = videoSize.width;
-            mTextureView.getLayoutParams().height = videoSize.height;
-            mTextureView.requestLayout();
+            if (mTextureView != null && mTextureView.getLayoutParams() != null) {
+              mTextureView.getLayoutParams().width = videoSize.width;
+              mTextureView.getLayoutParams().height = videoSize.height;
+              mTextureView.requestLayout();
+            }
+
+            mSurfaceView.getLayoutParams().width = videoSize.width;
+            mSurfaceView.getLayoutParams().height = videoSize.height;
+            mSurfaceView.requestLayout();
           }
         });
 
       }
+
+      @Override
+      public void onRenderedFirstFrame() {
+        Log.d(TAG, "onRenderedFirstFrame");
+        Player.Listener.super.onRenderedFirstFrame();
+      }
+
     });
 
+    Timer timer = new Timer();
+    timer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        mHandler.post(new Runnable() {
+          @Override
+          public void run() {
+            mIv.setImageBitmap(mTextureView.getBitmap());
+          }
+        });
+
+      }
+    }, 5000, 1000);
+
+
+
+    mTextureView.setSurfaceTextureListener(
+        new TextureView.SurfaceTextureListener() {
+          @Override
+          public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width,
+              int height) {
+            Log.d("duruochen111", "onSurfaceTextureAvailable");
+            mExoPlayer.setVideoTextureView(mTextureView);
+
+
+          }
+
+          @Override
+          public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width,
+              int height) {
+            Log.d("duruochen111", "onSurfaceTextureSizeChanged");
+            mExoPlayer.setVideoTextureView(mTextureView);
+          }
+
+          @Override
+          public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
+            return false;
+          }
+
+          @Override
+          public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+            Log.d("duruochen111", "onSurfaceTextureUpdated");
+          }
+        }
+    );
   }
 
   @Override

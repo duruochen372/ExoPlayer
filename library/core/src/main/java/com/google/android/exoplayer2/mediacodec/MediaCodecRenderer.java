@@ -309,7 +309,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   private final boolean enableDecoderFallback;
   private final float assumedMinimumCodecOperatingRate;
   private final DecoderInputBuffer noDataBuffer;
-  private final DecoderInputBuffer buffer;
+  private final DecoderInputBuffer drcinputBuffer;
   private final DecoderInputBuffer bypassSampleBuffer;
   private final BatchBuffer bypassBatchBuffer;
   private final TimedValueQueue<Format> formatQueue;
@@ -318,6 +318,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
   private final long[] pendingOutputStreamStartPositionsUs;
   private final long[] pendingOutputStreamOffsetsUs;
   private final long[] pendingOutputStreamSwitchTimesUs;
+  @SampleStream.ReadDataResult int result;
 
   @Nullable private Format inputFormat;
   @Nullable private Format outputFormat;
@@ -398,7 +399,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     this.enableDecoderFallback = enableDecoderFallback;
     this.assumedMinimumCodecOperatingRate = assumedMinimumCodecOperatingRate;
     noDataBuffer = DecoderInputBuffer.newNoDataInstance();
-    buffer = new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED);
+    drcinputBuffer = new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DISABLED);
     bypassSampleBuffer = new DecoderInputBuffer(DecoderInputBuffer.BUFFER_REPLACEMENT_MODE_DIRECT);
     bypassBatchBuffer = new BatchBuffer();
     formatQueue = new TimedValueQueue<>();
@@ -772,6 +773,10 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
   @Override
   public void render(long positionUs, long elapsedRealtimeUs) throws ExoPlaybackException {
+//    if (result == C.RESULT_NOTHING_READ) {
+//      Log.d("duruochen", "空的 不走了");
+//      return;
+//    }
     if (pendingOutputEndOfStream) {
       pendingOutputEndOfStream = false;
       processEndOfStream();
@@ -820,6 +825,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
         if (isRecoverable) {
           releaseCodec();
         }
+        Log.d("duruochen", "IllegalStateException:" + e.toString());
+        e.printStackTrace();
         throw createRendererException(
             createDecoderException(e, getCodecInfo()),
             inputFormat,
@@ -1154,7 +1161,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
   private void resetInputBuffer() {
     inputIndex = C.INDEX_UNSET;
-    buffer.data = null;
+    drcinputBuffer.data = null;
   }
 
   private void resetOutputBuffer() {
@@ -1190,8 +1197,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       if (inputIndex < 0) {
         return false;
       }
-      buffer.data = codec.getInputBuffer(inputIndex);
-      buffer.clear();
+      drcinputBuffer.data = codec.getInputBuffer(inputIndex);
+      drcinputBuffer.clear();
     }
 
     if (codecDrainState == DRAIN_STATE_SIGNAL_END_OF_STREAM) {
@@ -1210,7 +1217,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
 
     if (codecNeedsAdaptationWorkaroundBuffer) {
       codecNeedsAdaptationWorkaroundBuffer = false;
-      buffer.data.put(ADAPTATION_WORKAROUND_BUFFER);
+      drcinputBuffer.data.put(ADAPTATION_WORKAROUND_BUFFER);
       codec.queueInputBuffer(inputIndex, 0, ADAPTATION_WORKAROUND_BUFFER.length, 0, 0);
       resetInputBuffer();
       codecReceivedBuffers = true;
@@ -1222,18 +1229,21 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     if (codecReconfigurationState == RECONFIGURATION_STATE_WRITE_PENDING) {
       for (int i = 0; i < codecInputFormat.initializationData.size(); i++) {
         byte[] data = codecInputFormat.initializationData.get(i);
-        buffer.data.put(data);
+        drcinputBuffer.data.put(data);
       }
       codecReconfigurationState = RECONFIGURATION_STATE_QUEUE_PENDING;
     }
-    int adaptiveReconfigurationBytes = buffer.data.position();
+    int adaptiveReconfigurationBytes = drcinputBuffer.data.position();
 
     FormatHolder formatHolder = getFormatHolder();
 
-    @SampleStream.ReadDataResult int result;
+
     try {
-      Log.d("duuruochen", "取数据");
-      result = readSource(formatHolder, buffer, /* readFlags= */ 0);
+      Log.d("duruochen", "取数据:" + this);
+      result = readSource(formatHolder, drcinputBuffer, /* readFlags= */ 0);
+//      if (result == C.RESULT_NOTHING_READ) {
+//
+//      }
     } catch (InsufficientCapacityException e) {
       onCodecError(e);
       // Skip the sample that's too large by reading it without its data. Then flush the codec so
@@ -1255,7 +1265,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       if (codecReconfigurationState == RECONFIGURATION_STATE_QUEUE_PENDING) {
         // We received two formats in a row. Clear the current buffer of any reconfiguration data
         // associated with the first format.
-        buffer.clear();
+        drcinputBuffer.clear();
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
       onInputFormatChanged(formatHolder);
@@ -1263,12 +1273,12 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     }
 
     // We've read a buffer.
-    if (buffer.isEndOfStream()) {
+    if (drcinputBuffer.isEndOfStream()) {
       if (codecReconfigurationState == RECONFIGURATION_STATE_QUEUE_PENDING) {
         // We received a new format immediately before the end of the stream. We need to clear
         // the corresponding reconfiguration data from the current buffer, but re-write it into
         // a subsequent buffer if there are any (for example, if the user seeks backwards).
-        buffer.clear();
+        drcinputBuffer.clear();
         codecReconfigurationState = RECONFIGURATION_STATE_WRITE_PENDING;
       }
       inputStreamEnded = true;
@@ -1302,8 +1312,8 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     // workaround behaviors, for example when switching the output Surface on API levels prior to
     // the introduction of MediaCodec.setOutputSurface, and when it's necessary to skip past a
     // sample that's too large to be held in one of the decoder's input buffers.
-    if (!codecReceivedBuffers && !buffer.isKeyFrame()) {
-      buffer.clear();
+    if (!codecReceivedBuffers && !drcinputBuffer.isKeyFrame()) {
+      drcinputBuffer.clear();
       if (codecReconfigurationState == RECONFIGURATION_STATE_QUEUE_PENDING) {
         // The buffer we just cleared contained reconfiguration data. We need to re-write this data
         // into a subsequent buffer (if there is one).
@@ -1312,23 +1322,23 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       return true;
     }
 
-    boolean bufferEncrypted = buffer.isEncrypted();
+    boolean bufferEncrypted = drcinputBuffer.isEncrypted();
     if (bufferEncrypted) {
-      buffer.cryptoInfo.increaseClearDataFirstSubSampleBy(adaptiveReconfigurationBytes);
+      drcinputBuffer.cryptoInfo.increaseClearDataFirstSubSampleBy(adaptiveReconfigurationBytes);
     }
     if (codecNeedsDiscardToSpsWorkaround && !bufferEncrypted) {
-      NalUnitUtil.discardToSps(buffer.data);
-      if (buffer.data.position() == 0) {
+      NalUnitUtil.discardToSps(drcinputBuffer.data);
+      if (drcinputBuffer.data.position() == 0) {
         return true;
       }
       codecNeedsDiscardToSpsWorkaround = false;
     }
 
-    long presentationTimeUs = buffer.timeUs;
+    long presentationTimeUs = drcinputBuffer.timeUs;
 
     if (c2Mp3TimestampTracker != null) {
       presentationTimeUs =
-          c2Mp3TimestampTracker.updateAndGetPresentationTimeUs(inputFormat, buffer);
+          c2Mp3TimestampTracker.updateAndGetPresentationTimeUs(inputFormat, drcinputBuffer);
       // When draining the C2 MP3 decoder it produces an extra non-empty buffer with a timestamp
       // after all queued input buffer timestamps (unlike other decoders, which generally propagate
       // the input timestamps to output buffers 1:1). To detect the end of the stream when this
@@ -1339,7 +1349,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
               c2Mp3TimestampTracker.getLastOutputBufferPresentationTimeUs(inputFormat));
     }
 
-    if (buffer.isDecodeOnly()) {
+    if (drcinputBuffer.isDecodeOnly()) {
       decodeOnlyPresentationTimestamps.add(presentationTimeUs);
     }
     if (waitingForFirstSampleInFormat) {
@@ -1347,20 +1357,20 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       waitingForFirstSampleInFormat = false;
     }
     largestQueuedPresentationTimeUs = max(largestQueuedPresentationTimeUs, presentationTimeUs);
-    buffer.flip();
-    if (buffer.hasSupplementalData()) {
-      handleInputBufferSupplementalData(buffer);
+    drcinputBuffer.flip();
+    if (drcinputBuffer.hasSupplementalData()) {
+      handleInputBufferSupplementalData(drcinputBuffer);
     }
 
-    onQueueInputBuffer(buffer);
+    onQueueInputBuffer(drcinputBuffer);
     try {
       if (bufferEncrypted) {
         codec.queueSecureInputBuffer(
-            inputIndex, /* offset= */ 0, buffer.cryptoInfo, presentationTimeUs, /* flags= */ 0);
+            inputIndex, /* offset= */ 0, drcinputBuffer.cryptoInfo, presentationTimeUs, /* flags= */ 0);
       } else {
-//        Log.d("duruochen", "把读到的数据送去解码");
+        Log.d("duruochen", "把读到的数据送去解码" + this);
         codec.queueInputBuffer(
-            inputIndex, /* offset= */ 0, buffer.data.limit(), presentationTimeUs, /* flags= */ 0);
+            inputIndex, /* offset= */ 0, drcinputBuffer.data.limit(), presentationTimeUs, /* flags= */ 0);
       }
     } catch (CryptoException e) {
       throw createRendererException(
@@ -1822,10 +1832,19 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
           return false;
         }
       } else {
-//        Log.d("duruochen", "取解码后的数据2");
-        outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo);
-//        Log.d("duruochen", "解码完一帧数据2:pts=" + outputBufferInfo.presentationTimeUs + "   flag=" + outputBufferInfo.flags
-//            + "   size=" + outputBufferInfo.size + "   offset=" + outputBufferInfo.offset);
+        Log.d("duruochen", "取解码后的数据2  " + this);
+        try {
+          outputIndex = codec.dequeueOutputBufferIndex(outputBufferInfo);
+        } catch (Exception e) {
+          if (result == C.RESULT_NOTHING_READ) {//没数据
+            Log.d("duruochen", "没数据了:" + this  + e.getMessage());
+            outputIndex = -1;
+          } else {
+            throw e;
+          }
+        }
+        Log.d("duruochen", "解码完一帧数据2:pts=" + outputBufferInfo.presentationTimeUs + "   flag=" + outputBufferInfo.flags
+            + "   size=" + outputBufferInfo.size + "   offset=" + outputBufferInfo.offset);
         if ((outputBufferInfo.flags & 0x01) == 1) {
           Log.d("duruochen666",
               "解码完成   是否为关键帧2：" + ((outputBufferInfo.flags & 0x01) == 1) + "   pts："
@@ -1860,7 +1879,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
       }
 
       this.outputIndex = outputIndex;
-      outputBuffer = codec.getOutputBuffer(outputIndex);
+      outputBuffer = codec.getOutputBuffer(outputIndex); //获取编解码之后的数据输出流队列，返回的是一个ByteBuffer数组
 
       // The dequeued buffer is a media buffer. Do some initial setup.
       // It will be processed by calling processOutputBuffer (possibly multiple times).
@@ -1884,7 +1903,7 @@ public abstract class MediaCodecRenderer extends BaseRenderer {
     if (codecNeedsEosOutputExceptionWorkaround && codecReceivedEos) {
       try {
         processedOutputBuffer =
-            processOutputBuffer(
+            processOutputBuffer( //处理解码后的数据，送显
                 positionUs,
                 elapsedRealtimeUs,
                 codec,

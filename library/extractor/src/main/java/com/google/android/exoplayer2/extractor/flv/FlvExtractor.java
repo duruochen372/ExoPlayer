@@ -157,6 +157,7 @@ public final class FlvExtractor implements Extractor {
   @Override  //读取流媒体数据
   public int read(ExtractorInput input, PositionHolder seekPosition) throws IOException {
     Assertions.checkStateNotNull(extractorOutput); // Asserts that init has been called.
+//    Log.d("duruochen777", "读取流媒体数据");
     while (true) {
       switch (state) {
         case STATE_READING_FLV_HEADER:

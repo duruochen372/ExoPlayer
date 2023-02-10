@@ -245,7 +245,7 @@ import java.util.Arrays;
   private void postAppend(int length) {
     totalBytesWritten += length;
     if (totalBytesWritten == writeAllocationNode.endPosition) {
-//      Log.d("duruochen", "写满了 换下一个节点：" + totalBytesWritten);
+//      Log.d("duruochen", "写满了 换下一个节点：" + totalBytesWritten + "   " + this);
       writeAllocationNode = writeAllocationNode.next;
     }
 //    Log.d("duruochen", "队列中总字节数:" + totalBytesWritten + "   " + this);
@@ -263,12 +263,12 @@ import java.util.Arrays;
    * @throws InsufficientCapacityException If the {@code buffer} has insufficient capacity to hold
    *     the sample data.
    */
-  private static AllocationNode readSampleData(
+  private AllocationNode readSampleData(
       AllocationNode allocationNode,
       DecoderInputBuffer buffer,
       SampleExtrasHolder extrasHolder,
       ParsableByteArray scratch) {
-//    Log.d("duruochen", "readSampleData取数据");
+    Log.d("duruochen", "readSampleData取数据" + SampleDataQueue.this);
     if (buffer.isEncrypted()) {
       allocationNode = readEncryptionData(allocationNode, buffer, extrasHolder, scratch);
     }

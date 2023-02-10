@@ -102,7 +102,9 @@ import com.google.android.exoplayer2.video.AvcConfig;
     } else if (packetType == AVC_PACKET_TYPE_AVC_NALU && hasOutputFormat) {
       boolean isKeyframe = frameType == VIDEO_FRAME_KEYFRAME;
       if (isKeyframe) {
-        Log.d("duruochen666", "解析flv得到pts:" + pts + "   timestampUs=" + timeUs + "   compositionTimeUs=" + (compositionTimeMs * 1000));
+        Log.d("duruochen777", "读到关键帧  解析flv得到pts:" + pts + "   timestampUs=" + timeUs + "   compositionTimeUs=" + (compositionTimeMs * 1000));
+      } else {
+        Log.d("duruochen777", "读到非关键帧  解析flv得到pts:" + pts + "   timestampUs=" + timeUs + "   compositionTimeUs=" + (compositionTimeMs * 1000));
       }
       if (!hasOutputKeyframe && !isKeyframe) {
         return false;

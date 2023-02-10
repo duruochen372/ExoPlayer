@@ -7,11 +7,7 @@
     android:layout_height="match_parent"
     tools:context=".xmly.VideoActivity">
 
-  <com.google.android.exoplayer2.ui.StyledPlayerView
-    android:id="@+id/player_view"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:visibility="gone"/>
+
 
 <!--  <TextureView-->
 <!--    android:id="@+id/texture_view"-->
@@ -23,7 +19,8 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_alignParentBottom="true"
-    android:text="布局改变" />
+    android:text="布局改变"
+    android:layout_marginBottom="100dp"/>
 
   <Button
     android:id="@+id/video_pause_btn"
@@ -31,6 +28,19 @@
     android:layout_height="wrap_content"
     android:layout_alignParentBottom="true"
     android:layout_toRightOf="@+id/video_size_btn"
-    android:text="暂停" />
+    android:text="暂停"
+    android:layout_marginBottom="100dp"/>
 
+  <com.google.android.exoplayer2.ui.StyledPlayerView
+    android:id="@+id/player_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:visibility="gone"/>
+
+  <ImageView
+    android:id="@+id/image"
+    android:layout_width="match_parent"
+    android:layout_height="500dp"
+    android:layout_alignParentBottom="true"
+    android:layout_marginBottom="100dp"/>
 </RelativeLayout>
