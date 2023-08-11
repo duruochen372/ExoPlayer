@@ -11,16 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-apply from: "$gradle.ext.exoplayerSettingsDir/common_library_config.gradle"
-
-android {
-    defaultConfig {
-        multiDexEnabled true
-    }
-}
+ apply from: "$gradle.ext.exoplayerSettingsDir/common_library_config.gradle"
 
 dependencies {
-    androidTestImplementation 'androidx.multidex:multidex:' + androidxMultidexVersion
     androidTestImplementation 'androidx.test:rules:' + androidxTestRulesVersion
     androidTestImplementation 'androidx.test:runner:' + androidxTestRunnerVersion
     androidTestImplementation 'androidx.annotation:annotation:' + androidxAnnotationVersion

@@ -42,7 +42,15 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 import javax.net.SocketFactory;
 
-/** An Rtsp {@link MediaSource} */
+/**
+ * An Rtsp {@link MediaSource}
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
+ */
+@Deprecated
 public final class RtspMediaSource extends BaseMediaSource {
 
   static {
@@ -190,7 +198,7 @@ public final class RtspMediaSource extends BaseMediaSource {
   }
 
   /** Thrown when an exception or error is encountered during loading an RTSP stream. */
-  public static final class RtspPlaybackException extends IOException {
+  public static class RtspPlaybackException extends IOException {
     public RtspPlaybackException(String message) {
       super(message);
     }
@@ -201,6 +209,13 @@ public final class RtspMediaSource extends BaseMediaSource {
 
     public RtspPlaybackException(String message, Throwable e) {
       super(message, e);
+    }
+  }
+
+  /** Thrown when an RTSP Unsupported Transport error (461) is encountered during RTSP Setup. */
+  public static final class RtspUdpUnsupportedTransportException extends RtspPlaybackException {
+    public RtspUdpUnsupportedTransportException(String message) {
+      super(message);
     }
   }
 

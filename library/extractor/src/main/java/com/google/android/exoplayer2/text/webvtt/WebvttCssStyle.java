@@ -35,11 +35,17 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Style object of a Css style block in a Webvtt file.
+ * Style object of a CSS style block in a WebVTT file.
  *
- * @see <a href="https://w3c.github.io/webvtt/#applying-css-properties">W3C specification - Apply
- *     CSS properties</a>
+ * <p>See the <a href="https://w3c.github.io/webvtt/#applying-css-properties">Apply CSS properties
+ * section of the W3C specification</a>
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
+@Deprecated
 public final class WebvttCssStyle {
 
   public static final int UNSPECIFIED = -1;
@@ -150,12 +156,13 @@ public final class WebvttCssStyle {
    *   <li>Universal selector matching scores 1.
    * </ul>
    *
+   * <p>See also <a href="https://www.w3.org/TR/CSS2/cascade.html">CSS Cascading</a>.
+   *
    * @param id The id of the cue if present, {@code null} otherwise.
    * @param tag Name of the tag, {@code null} if it refers to the entire cue.
    * @param classes An array containing the classes the tag belongs to. Must not be null.
    * @param voice Annotated voice if present, {@code null} otherwise.
    * @return The score of the match, zero if there is no match.
-   * @see <a href="https://www.w3.org/TR/CSS2/cascade.html">CSS Cascading</a>
    */
   public int getSpecificityScore(
       @Nullable String id, @Nullable String tag, Set<String> classes, @Nullable String voice) {

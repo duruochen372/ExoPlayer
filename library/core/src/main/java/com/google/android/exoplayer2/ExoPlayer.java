@@ -24,6 +24,7 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioTrack;
 import android.media.MediaCodec;
 import android.os.Looper;
+import android.os.Process;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -57,6 +58,7 @@ import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.util.Clock;
+import com.google.android.exoplayer2.util.Effect;
 import com.google.android.exoplayer2.util.PriorityTaskManager;
 import com.google.android.exoplayer2.util.Util;
 import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
@@ -120,19 +122,20 @@ import java.util.List;
  *
  * <p>The figure below shows ExoPlayer's threading model.
  *
- * <p style="align:center"><img src="doc-files/exoplayer-threading-model.svg" alt="ExoPlayer's
- * threading model">
+ * <p style="align:center"><img
+ * src="https://exoplayer.dev/doc/reference/com/google/android/exoplayer2/doc-files/exoplayer-threading-model.svg"
+ * alt="ExoPlayer's threading model">
  *
  * <ul>
- *   <li>ExoPlayer instances must be accessed from a single application thread. For the vast
- *       majority of cases this should be the application's main thread. Using the application's
- *       main thread is also a requirement when using ExoPlayer's UI components or the IMA
- *       extension. The thread on which an ExoPlayer instance must be accessed can be explicitly
- *       specified by passing a `Looper` when creating the player. If no `Looper` is specified, then
- *       the `Looper` of the thread that the player is created on is used, or if that thread does
- *       not have a `Looper`, the `Looper` of the application's main thread is used. In all cases
- *       the `Looper` of the thread from which the player must be accessed can be queried using
- *       {@link #getApplicationLooper()}.
+ *   <li>ExoPlayer instances must be accessed from a single application thread unless indicated
+ *       otherwise. For the vast majority of cases this should be the application's main thread.
+ *       Using the application's main thread is also a requirement when using ExoPlayer's UI
+ *       components or the IMA extension. The thread on which an ExoPlayer instance must be accessed
+ *       can be explicitly specified by passing a `Looper` when creating the player. If no `Looper`
+ *       is specified, then the `Looper` of the thread that the player is created on is used, or if
+ *       that thread does not have a `Looper`, the `Looper` of the application's main thread is
+ *       used. In all cases the `Looper` of the thread from which the player must be accessed can be
+ *       queried using {@link #getApplicationLooper()}.
  *   <li>Registered listeners are called on the thread associated with {@link
  *       #getApplicationLooper()}. Note that this means registered listeners are called on the same
  *       thread which must be used to access the player.
@@ -149,7 +152,15 @@ import java.util.List;
  *   <li>Injected player components may use additional background threads. For example a MediaSource
  *       may use background threads to load data. These are implementation specific.
  * </ul>
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
+// TODO(b/276289331): Revert to media3-hosted SVG links above once they're available on
+// developer.android.com.
+@Deprecated
 public interface ExoPlayer extends Player {
 
   /**
@@ -462,6 +473,7 @@ public interface ExoPlayer extends Player {
     @C.WakeMode /* package */ int wakeMode;
     /* package */ boolean handleAudioBecomingNoisy;
     /* package */ boolean skipSilenceEnabled;
+    /* package */ boolean deviceVolumeControlEnabled;
     @C.VideoScalingMode /* package */ int videoScalingMode;
     @C.VideoChangeFrameRateStrategy /* package */ int videoChangeFrameRateStrategy;
     /* package */ boolean useLazyPreparation;
@@ -473,6 +485,7 @@ public interface ExoPlayer extends Player {
     /* package */ long detachSurfaceTimeoutMs;
     /* package */ boolean pauseAtEndOfMediaItems;
     /* package */ boolean usePlatformDiagnostics;
+    @Nullable /* package */ Looper playbackLooper;
     /* package */ boolean buildCalled;
 
     /**
@@ -515,6 +528,7 @@ public interface ExoPlayer extends Player {
      *   <li>{@code pauseAtEndOfMediaItems}: {@code false}
      *   <li>{@code usePlatformDiagnostics}: {@code true}
      *   <li>{@link Clock}: {@link Clock#DEFAULT}
+     *   <li>{@code playbackLooper}: {@code null} (create new thread)
      * </ul>
      *
      * @param context A {@link Context}.
@@ -887,6 +901,20 @@ public interface ExoPlayer extends Player {
     }
 
     /**
+     * Sets whether the player is allowed to set, increase, decrease or mute device volume.
+     *
+     * @param deviceVolumeControlEnabled Whether controlling device volume is enabled.
+     * @return This builder.
+     * @throws IllegalStateException If {@link #build()} has already been called.
+     */
+    @CanIgnoreReturnValue
+    public Builder setDeviceVolumeControlEnabled(boolean deviceVolumeControlEnabled) {
+      checkState(!buildCalled);
+      this.deviceVolumeControlEnabled = deviceVolumeControlEnabled;
+      return this;
+    }
+
+    /**
      * Sets the {@link C.VideoScalingMode} that will be used by the player.
      *
      * <p>The scaling mode only applies if a {@link MediaCodec}-based video {@link Renderer} is
@@ -1098,6 +1126,23 @@ public interface ExoPlayer extends Player {
     }
 
     /**
+     * Sets the {@link Looper} that will be used for playback.
+     *
+     * <p>The backing thread should run with priority {@link Process#THREAD_PRIORITY_AUDIO} and
+     * should handle messages within 10ms.
+     *
+     * @param playbackLooper A {@link Looper}.
+     * @return This builder.
+     * @throws IllegalStateException If {@link #build()} has already been called.
+     */
+    @CanIgnoreReturnValue
+    public Builder setPlaybackLooper(Looper playbackLooper) {
+      checkState(!buildCalled);
+      this.playbackLooper = playbackLooper;
+      return this;
+    }
+
+    /**
      * Builds an {@link ExoPlayer} instance.
      *
      * @throws IllegalStateException If this method has already been called.
@@ -1167,6 +1212,8 @@ public interface ExoPlayer extends Player {
   /**
    * Adds a listener to receive audio offload events.
    *
+   * <p>This method can be called from any thread.
+   *
    * @param listener The listener to register.
    */
   void addAudioOffloadListener(AudioOffloadListener listener);
@@ -1183,6 +1230,8 @@ public interface ExoPlayer extends Player {
 
   /**
    * Adds an {@link AnalyticsListener} to receive analytics events.
+   *
+   * <p>This method can be called from any thread.
    *
    * @param listener The listener to be added.
    */
@@ -1243,17 +1292,19 @@ public interface ExoPlayer extends Player {
   @Deprecated
   TrackSelectionArray getCurrentTrackSelections();
 
-  /** Returns the {@link Looper} associated with the playback thread. */
+  /**
+   * Returns the {@link Looper} associated with the playback thread.
+   *
+   * <p>This method may be called from any thread.
+   */
   Looper getPlaybackLooper();
 
-  /** Returns the {@link Clock} used for playback. */
-  Clock getClock();
-
   /**
-   * @deprecated Use {@link #prepare()} instead.
+   * Returns the {@link Clock} used for playback.
+   *
+   * <p>This method can be called from any thread.
    */
-  @Deprecated
-  void retry();
+  Clock getClock();
 
   /**
    * @deprecated Use {@link #setMediaSource(MediaSource)} and {@link #prepare()} instead.
@@ -1425,6 +1476,24 @@ public interface ExoPlayer extends Player {
   boolean getSkipSilenceEnabled();
 
   /**
+   * Sets a {@link List} of {@linkplain Effect video effects} that will be applied to each video
+   * frame.
+   *
+   * <p>The following limitations exist for using {@linkplain Effect video effects}:
+   *
+   * <ul>
+   *   <li>This feature works only with the default {@link MediaCodecVideoRenderer} and not custom
+   *       or extension {@linkplain Renderer video renderers}.
+   *   <li>This feature does not work with DRM-protected contents.
+   *   <li>This method should be called before calling {@link #prepare}.
+   * </ul>
+   *
+   * @param videoEffects The {@link List} of {@linkplain Effect video effects} to apply.
+   */
+  @RequiresApi(18)
+  void setVideoEffects(List<Effect> videoEffects);
+
+  /**
    * Sets the {@link C.VideoScalingMode}.
    *
    * <p>The scaling mode only applies if a {@link MediaCodec}-based video {@link Renderer} is
@@ -1587,12 +1656,6 @@ public interface ExoPlayer extends Player {
    *     rerouted from a headset to device speakers.
    */
   void setHandleAudioBecomingNoisy(boolean handleAudioBecomingNoisy);
-
-  /**
-   * @deprecated Use {@link #setWakeMode(int)} instead.
-   */
-  @Deprecated
-  void setHandleWakeLock(boolean handleWakeLock);
 
   /**
    * Sets how the player should keep the device awake for playback when the screen is off.

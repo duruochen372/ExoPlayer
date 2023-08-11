@@ -21,6 +21,7 @@ import static com.google.android.exoplayer2.util.FileTypes.inferFileTypeFromUri;
 import android.net.Uri;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.extractor.amr.AmrExtractor;
@@ -43,6 +44,7 @@ import com.google.android.exoplayer2.extractor.ts.TsPayloadReader;
 import com.google.android.exoplayer2.extractor.wav.WavExtractor;
 import com.google.android.exoplayer2.util.FileTypes;
 import com.google.android.exoplayer2.util.TimestampAdjuster;
+import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -81,7 +83,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>MIDI, if available, the MIDI extension's {@code
  *       com.google.android.exoplayer2.decoder.midi.MidiExtractor} is used.
  * </ul>
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
+@Deprecated
 public final class DefaultExtractorsFactory implements ExtractorsFactory {
 
   // Extractors order is optimized according to
@@ -126,6 +134,8 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
   private @Mp3Extractor.Flags int mp3Flags;
   private @TsExtractor.Mode int tsMode;
   private @DefaultTsPayloadReaderFactory.Flags int tsFlags;
+  // TODO (b/260245332): Initialize tsSubtitleFormats in constructor once shrinking bug is fixed.
+  @Nullable private ImmutableList<Format> tsSubtitleFormats;
   private int tsTimestampSearchBytes;
 
   public DefaultExtractorsFactory() {
@@ -302,6 +312,20 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
   }
 
   /**
+   * Sets a list of subtitle formats to pass to the {@link DefaultTsPayloadReaderFactory} used by
+   * {@link TsExtractor} instances created by the factory.
+   *
+   * @see DefaultTsPayloadReaderFactory#DefaultTsPayloadReaderFactory(int, List)
+   * @param subtitleFormats The subtitle formats.
+   * @return The factory, for convenience.
+   */
+  @CanIgnoreReturnValue
+  public synchronized DefaultExtractorsFactory setTsSubtitleFormats(List<Format> subtitleFormats) {
+    tsSubtitleFormats = ImmutableList.copyOf(subtitleFormats);
+    return this;
+  }
+
+  /**
    * Sets the number of bytes searched to find a timestamp for {@link TsExtractor} instances created
    * by the factory.
    *
@@ -414,7 +438,15 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
         extractors.add(new PsExtractor());
         break;
       case FileTypes.TS:
-        extractors.add(new TsExtractor(tsMode, tsFlags, tsTimestampSearchBytes));
+        if (tsSubtitleFormats == null) {
+          tsSubtitleFormats = ImmutableList.of();
+        }
+        extractors.add(
+            new TsExtractor(
+                tsMode,
+                new TimestampAdjuster(0),
+                new DefaultTsPayloadReaderFactory(tsFlags, tsSubtitleFormats),
+                tsTimestampSearchBytes));
         break;
       case FileTypes.WAV:
         extractors.add(new WavExtractor());
@@ -447,7 +479,9 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
 
   @Nullable
   private static Constructor<? extends Extractor> getFlacExtractorConstructor()
-      throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException,
+      throws ClassNotFoundException,
+          NoSuchMethodException,
+          InvocationTargetException,
           IllegalAccessException {
     @SuppressWarnings("nullness:argument")
     boolean isFlacNativeLibraryAvailable =
@@ -468,7 +502,9 @@ public final class DefaultExtractorsFactory implements ExtractorsFactory {
     public interface ConstructorSupplier {
       @Nullable
       Constructor<? extends Extractor> getConstructor()
-          throws InvocationTargetException, IllegalAccessException, NoSuchMethodException,
+          throws InvocationTargetException,
+              IllegalAccessException,
+              NoSuchMethodException,
               ClassNotFoundException;
     }
 

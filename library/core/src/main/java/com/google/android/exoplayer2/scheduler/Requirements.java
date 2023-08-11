@@ -41,7 +41,15 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Defines a set of device state requirements. */
+/**
+ * Defines a set of device state requirements.
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
+ */
+@Deprecated
 public final class Requirements implements Parcelable {
 
   /**
@@ -182,8 +190,8 @@ public final class Requirements implements Parcelable {
   private boolean isDeviceCharging(Context context) {
     @Nullable
     Intent batteryStatus =
-        Util.registerReceiverNotExported(
-            context, /* receiver= */ null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        context.registerReceiver(
+            /* receiver= */ null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     if (batteryStatus == null) {
       return false;
     }
@@ -201,8 +209,8 @@ public final class Requirements implements Parcelable {
   }
 
   private boolean isStorageNotLow(Context context) {
-    return Util.registerReceiverNotExported(
-            context, /* receiver= */ null, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW))
+    return context.registerReceiver(
+            /* receiver= */ null, new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW))
         == null;
   }
 

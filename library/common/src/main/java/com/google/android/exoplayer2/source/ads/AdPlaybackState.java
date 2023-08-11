@@ -33,6 +33,7 @@ import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.Bundleable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.source.MediaPeriodId;
 import com.google.android.exoplayer2.util.Util;
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -47,7 +48,13 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
  *
  * <p>Instances are immutable. Call the {@code with*} methods to get new instances that have the
  * required changes.
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
+@Deprecated
 public final class AdPlaybackState implements Bundleable {
 
   /**
@@ -171,6 +178,10 @@ public final class AdPlaybackState implements Bundleable {
         }
       }
       return false;
+    }
+
+    private boolean isLivePostrollPlaceholder() {
+      return isServerSideInserted && timeUs == C.TIME_END_OF_SOURCE && count == C.LENGTH_UNSET;
     }
 
     @Override
@@ -460,44 +471,29 @@ public final class AdPlaybackState implements Bundleable {
 
     // Bundleable implementation.
 
-    @Documented
-    @Retention(RetentionPolicy.SOURCE)
-    @Target(TYPE_USE)
-    @IntDef({
-      FIELD_TIME_US,
-      FIELD_COUNT,
-      FIELD_URIS,
-      FIELD_STATES,
-      FIELD_DURATIONS_US,
-      FIELD_CONTENT_RESUME_OFFSET_US,
-      FIELD_IS_SERVER_SIDE_INSERTED,
-      FIELD_ORIGINAL_COUNT
-    })
-    private @interface FieldNumber {}
-
-    private static final int FIELD_TIME_US = 0;
-    private static final int FIELD_COUNT = 1;
-    private static final int FIELD_URIS = 2;
-    private static final int FIELD_STATES = 3;
-    private static final int FIELD_DURATIONS_US = 4;
-    private static final int FIELD_CONTENT_RESUME_OFFSET_US = 5;
-    private static final int FIELD_IS_SERVER_SIDE_INSERTED = 6;
-    private static final int FIELD_ORIGINAL_COUNT = 7;
+    private static final String FIELD_TIME_US = Util.intToStringMaxRadix(0);
+    private static final String FIELD_COUNT = Util.intToStringMaxRadix(1);
+    private static final String FIELD_URIS = Util.intToStringMaxRadix(2);
+    private static final String FIELD_STATES = Util.intToStringMaxRadix(3);
+    private static final String FIELD_DURATIONS_US = Util.intToStringMaxRadix(4);
+    private static final String FIELD_CONTENT_RESUME_OFFSET_US = Util.intToStringMaxRadix(5);
+    private static final String FIELD_IS_SERVER_SIDE_INSERTED = Util.intToStringMaxRadix(6);
+    private static final String FIELD_ORIGINAL_COUNT = Util.intToStringMaxRadix(7);
 
     // putParcelableArrayList actually supports null elements.
     @SuppressWarnings("nullness:argument")
     @Override
     public Bundle toBundle() {
       Bundle bundle = new Bundle();
-      bundle.putLong(keyForField(FIELD_TIME_US), timeUs);
-      bundle.putInt(keyForField(FIELD_COUNT), count);
-      bundle.putInt(keyForField(FIELD_ORIGINAL_COUNT), originalCount);
+      bundle.putLong(FIELD_TIME_US, timeUs);
+      bundle.putInt(FIELD_COUNT, count);
+      bundle.putInt(FIELD_ORIGINAL_COUNT, originalCount);
       bundle.putParcelableArrayList(
-          keyForField(FIELD_URIS), new ArrayList<@NullableType Uri>(Arrays.asList(uris)));
-      bundle.putIntArray(keyForField(FIELD_STATES), states);
-      bundle.putLongArray(keyForField(FIELD_DURATIONS_US), durationsUs);
-      bundle.putLong(keyForField(FIELD_CONTENT_RESUME_OFFSET_US), contentResumeOffsetUs);
-      bundle.putBoolean(keyForField(FIELD_IS_SERVER_SIDE_INSERTED), isServerSideInserted);
+          FIELD_URIS, new ArrayList<@NullableType Uri>(Arrays.asList(uris)));
+      bundle.putIntArray(FIELD_STATES, states);
+      bundle.putLongArray(FIELD_DURATIONS_US, durationsUs);
+      bundle.putLong(FIELD_CONTENT_RESUME_OFFSET_US, contentResumeOffsetUs);
+      bundle.putBoolean(FIELD_IS_SERVER_SIDE_INSERTED, isServerSideInserted);
       return bundle;
     }
 
@@ -507,18 +503,16 @@ public final class AdPlaybackState implements Bundleable {
     // getParcelableArrayList may have null elements.
     @SuppressWarnings("nullness:type.argument")
     private static AdGroup fromBundle(Bundle bundle) {
-      long timeUs = bundle.getLong(keyForField(FIELD_TIME_US));
-      int count = bundle.getInt(keyForField(FIELD_COUNT), /* defaultValue= */ C.LENGTH_UNSET);
-      int originalCount =
-          bundle.getInt(keyForField(FIELD_ORIGINAL_COUNT), /* defaultValue= */ C.LENGTH_UNSET);
-      @Nullable
-      ArrayList<@NullableType Uri> uriList = bundle.getParcelableArrayList(keyForField(FIELD_URIS));
+      long timeUs = bundle.getLong(FIELD_TIME_US);
+      int count = bundle.getInt(FIELD_COUNT);
+      int originalCount = bundle.getInt(FIELD_ORIGINAL_COUNT);
+      @Nullable ArrayList<@NullableType Uri> uriList = bundle.getParcelableArrayList(FIELD_URIS);
       @Nullable
       @AdState
-      int[] states = bundle.getIntArray(keyForField(FIELD_STATES));
-      @Nullable long[] durationsUs = bundle.getLongArray(keyForField(FIELD_DURATIONS_US));
-      long contentResumeOffsetUs = bundle.getLong(keyForField(FIELD_CONTENT_RESUME_OFFSET_US));
-      boolean isServerSideInserted = bundle.getBoolean(keyForField(FIELD_IS_SERVER_SIDE_INSERTED));
+      int[] states = bundle.getIntArray(FIELD_STATES);
+      @Nullable long[] durationsUs = bundle.getLongArray(FIELD_DURATIONS_US);
+      long contentResumeOffsetUs = bundle.getLong(FIELD_CONTENT_RESUME_OFFSET_US);
+      boolean isServerSideInserted = bundle.getBoolean(FIELD_IS_SERVER_SIDE_INSERTED);
       return new AdGroup(
           timeUs,
           count,
@@ -528,10 +522,6 @@ public final class AdPlaybackState implements Bundleable {
           durationsUs == null ? new long[0] : durationsUs,
           contentResumeOffsetUs,
           isServerSideInserted);
-    }
-
-    private static String keyForField(@AdGroup.FieldNumber int field) {
-      return Integer.toString(field, Character.MAX_RADIX);
     }
   }
 
@@ -651,6 +641,7 @@ public final class AdPlaybackState implements Bundleable {
     // Use a linear search as the array elements may not be increasing due to TIME_END_OF_SOURCE.
     // In practice we expect there to be few ad groups so the search shouldn't be expensive.
     int index = adGroupCount - 1;
+    index -= isLivePostrollPlaceholder(index) ? 1 : 0;
     while (index >= 0 && isPositionBeforeAdGroup(positionUs, periodDurationUs, index)) {
       index--;
     }
@@ -999,6 +990,49 @@ public final class AdPlaybackState implements Bundleable {
   }
 
   /**
+   * Appends a live postroll placeholder ad group to the ad playback state.
+   *
+   * <p>Adding such a placeholder is only required for periods of server side ad insertion live
+   * streams.
+   *
+   * <p>When building the media period queue, it sets {@link MediaPeriodId#nextAdGroupIndex} of a
+   * content period to the index of the placeholder. However, the placeholder will not produce a
+   * period in the media period queue. This only happens when an actual ad group is inserted at the
+   * given {@code nextAdGroupIndex}. In this case the newly inserted ad group will be used to insert
+   * an ad period into the media period queue following the content period with the given {@link
+   * MediaPeriodId#nextAdGroupIndex}.
+   *
+   * <p>See {@link #endsWithLivePostrollPlaceHolder()} also.
+   *
+   * @return The new ad playback state instance ending with a live postroll placeholder.
+   */
+  public AdPlaybackState withLivePostrollPlaceholderAppended() {
+    return withNewAdGroup(adGroupCount, /* adGroupTimeUs= */ C.TIME_END_OF_SOURCE)
+        .withIsServerSideInserted(adGroupCount, true);
+  }
+
+  /**
+   * Returns whether the last ad group is a live postroll placeholder as inserted by {@link
+   * #withLivePostrollPlaceholderAppended()}.
+   *
+   * @return Whether the ad playback state ends with a live postroll placeholder.
+   */
+  public boolean endsWithLivePostrollPlaceHolder() {
+    int adGroupIndex = adGroupCount - 1;
+    return adGroupIndex >= 0 && isLivePostrollPlaceholder(adGroupIndex);
+  }
+
+  /**
+   * Whether the {@link AdGroup} at the given ad group index is a live postroll placeholder.
+   *
+   * @param adGroupIndex The ad group index.
+   * @return True if the ad group at the given index is a live postroll placeholder, false if not.
+   */
+  public boolean isLivePostrollPlaceholder(int adGroupIndex) {
+    return adGroupIndex == adGroupCount - 1 && getAdGroup(adGroupIndex).isLivePostrollPlaceholder();
+  }
+
+  /**
    * Returns a copy of the ad playback state with the given ads ID.
    *
    * @param adsId The new ads ID.
@@ -1110,34 +1144,29 @@ public final class AdPlaybackState implements Bundleable {
   private boolean isPositionBeforeAdGroup(
       long positionUs, long periodDurationUs, int adGroupIndex) {
     if (positionUs == C.TIME_END_OF_SOURCE) {
-      // The end of the content is at (but not before) any postroll ad, and after any other ads.
+      // The end of the content is at (but not before) any postroll ad, and after any other ad.
       return false;
     }
-    long adGroupPositionUs = getAdGroup(adGroupIndex).timeUs;
+    AdGroup adGroup = getAdGroup(adGroupIndex);
+    long adGroupPositionUs = adGroup.timeUs;
     if (adGroupPositionUs == C.TIME_END_OF_SOURCE) {
-      return periodDurationUs == C.TIME_UNSET || positionUs < periodDurationUs;
-    } else {
-      return positionUs < adGroupPositionUs;
+      // Handling postroll: The requested position is considered before a postroll when a)
+      // the period duration is unknown (last period in a live stream), or when b) the postroll is a
+      // placeholder in a period of a multi-period live window, or when c) the position actually is
+      // before the given period duration.
+      return periodDurationUs == C.TIME_UNSET
+          || (adGroup.isServerSideInserted && adGroup.count == C.LENGTH_UNSET)
+          || positionUs < periodDurationUs;
     }
+    return positionUs < adGroupPositionUs;
   }
 
   // Bundleable implementation.
 
-  @Documented
-  @Retention(RetentionPolicy.SOURCE)
-  @Target(TYPE_USE)
-  @IntDef({
-    FIELD_AD_GROUPS,
-    FIELD_AD_RESUME_POSITION_US,
-    FIELD_CONTENT_DURATION_US,
-    FIELD_REMOVED_AD_GROUP_COUNT
-  })
-  private @interface FieldNumber {}
-
-  private static final int FIELD_AD_GROUPS = 1;
-  private static final int FIELD_AD_RESUME_POSITION_US = 2;
-  private static final int FIELD_CONTENT_DURATION_US = 3;
-  private static final int FIELD_REMOVED_AD_GROUP_COUNT = 4;
+  private static final String FIELD_AD_GROUPS = Util.intToStringMaxRadix(1);
+  private static final String FIELD_AD_RESUME_POSITION_US = Util.intToStringMaxRadix(2);
+  private static final String FIELD_CONTENT_DURATION_US = Util.intToStringMaxRadix(3);
+  private static final String FIELD_REMOVED_AD_GROUP_COUNT = Util.intToStringMaxRadix(4);
 
   /**
    * {@inheritDoc}
@@ -1153,10 +1182,18 @@ public final class AdPlaybackState implements Bundleable {
     for (AdGroup adGroup : adGroups) {
       adGroupBundleList.add(adGroup.toBundle());
     }
-    bundle.putParcelableArrayList(keyForField(FIELD_AD_GROUPS), adGroupBundleList);
-    bundle.putLong(keyForField(FIELD_AD_RESUME_POSITION_US), adResumePositionUs);
-    bundle.putLong(keyForField(FIELD_CONTENT_DURATION_US), contentDurationUs);
-    bundle.putInt(keyForField(FIELD_REMOVED_AD_GROUP_COUNT), removedAdGroupCount);
+    if (!adGroupBundleList.isEmpty()) {
+      bundle.putParcelableArrayList(FIELD_AD_GROUPS, adGroupBundleList);
+    }
+    if (adResumePositionUs != NONE.adResumePositionUs) {
+      bundle.putLong(FIELD_AD_RESUME_POSITION_US, adResumePositionUs);
+    }
+    if (contentDurationUs != NONE.contentDurationUs) {
+      bundle.putLong(FIELD_CONTENT_DURATION_US, contentDurationUs);
+    }
+    if (removedAdGroupCount != NONE.removedAdGroupCount) {
+      bundle.putInt(FIELD_REMOVED_AD_GROUP_COUNT, removedAdGroupCount);
+    }
     return bundle;
   }
 
@@ -1168,9 +1205,7 @@ public final class AdPlaybackState implements Bundleable {
   public static final Bundleable.Creator<AdPlaybackState> CREATOR = AdPlaybackState::fromBundle;
 
   private static AdPlaybackState fromBundle(Bundle bundle) {
-    @Nullable
-    ArrayList<Bundle> adGroupBundleList =
-        bundle.getParcelableArrayList(keyForField(FIELD_AD_GROUPS));
+    @Nullable ArrayList<Bundle> adGroupBundleList = bundle.getParcelableArrayList(FIELD_AD_GROUPS);
     @Nullable AdGroup[] adGroups;
     if (adGroupBundleList == null) {
       adGroups = new AdGroup[0];
@@ -1181,16 +1216,13 @@ public final class AdPlaybackState implements Bundleable {
       }
     }
     long adResumePositionUs =
-        bundle.getLong(keyForField(FIELD_AD_RESUME_POSITION_US), /* defaultValue= */ 0);
+        bundle.getLong(FIELD_AD_RESUME_POSITION_US, /* defaultValue= */ NONE.adResumePositionUs);
     long contentDurationUs =
-        bundle.getLong(keyForField(FIELD_CONTENT_DURATION_US), /* defaultValue= */ C.TIME_UNSET);
-    int removedAdGroupCount = bundle.getInt(keyForField(FIELD_REMOVED_AD_GROUP_COUNT));
+        bundle.getLong(FIELD_CONTENT_DURATION_US, /* defaultValue= */ NONE.contentDurationUs);
+    int removedAdGroupCount =
+        bundle.getInt(FIELD_REMOVED_AD_GROUP_COUNT, /* defaultValue= */ NONE.removedAdGroupCount);
     return new AdPlaybackState(
         /* adsId= */ null, adGroups, adResumePositionUs, contentDurationUs, removedAdGroupCount);
-  }
-
-  private static String keyForField(@FieldNumber int field) {
-    return Integer.toString(field, Character.MAX_RADIX);
   }
 
   private static AdGroup[] createEmptyAdGroups(long[] adGroupTimesUs) {

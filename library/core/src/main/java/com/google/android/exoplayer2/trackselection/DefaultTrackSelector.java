@@ -106,8 +106,15 @@ import org.checkerframework.checker.nullness.compatqual.NullableType;
  *         .setTunnelingEnabled(true)
  *         .build());
  * }</pre>
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
-public class DefaultTrackSelector extends MappingTrackSelector {
+@Deprecated
+public class DefaultTrackSelector extends MappingTrackSelector
+    implements RendererCapabilities.Listener {
 
   private static final String TAG = "DefaultTrackSelector";
   private static final String AUDIO_CHANNEL_COUNT_CONSTRAINTS_WARN_MESSAGE =
@@ -754,6 +761,7 @@ public class DefaultTrackSelector extends MappingTrackSelector {
       private boolean exceedRendererCapabilitiesIfNecessary;
       private boolean tunnelingEnabled;
       private boolean allowMultipleAdaptiveSelections;
+      private boolean allowInvalidateSelectionsOnRendererCapabilitiesChange;
       // Overrides
       private final SparseArray<Map<TrackGroupArray, @NullableType SelectionOverride>>
           selectionOverrides;
@@ -810,6 +818,8 @@ public class DefaultTrackSelector extends MappingTrackSelector {
         exceedRendererCapabilitiesIfNecessary = initialValues.exceedRendererCapabilitiesIfNecessary;
         tunnelingEnabled = initialValues.tunnelingEnabled;
         allowMultipleAdaptiveSelections = initialValues.allowMultipleAdaptiveSelections;
+        allowInvalidateSelectionsOnRendererCapabilitiesChange =
+            initialValues.allowInvalidateSelectionsOnRendererCapabilitiesChange;
         // Overrides
         selectionOverrides = cloneSelectionOverrides(initialValues.selectionOverrides);
         rendererDisabledFlags = initialValues.rendererDisabledFlags.clone();
@@ -823,69 +833,66 @@ public class DefaultTrackSelector extends MappingTrackSelector {
         // Video
         setExceedVideoConstraintsIfNecessary(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY),
+                Parameters.FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY,
                 defaultValue.exceedVideoConstraintsIfNecessary));
         setAllowVideoMixedMimeTypeAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS,
                 defaultValue.allowVideoMixedMimeTypeAdaptiveness));
         setAllowVideoNonSeamlessAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS,
                 defaultValue.allowVideoNonSeamlessAdaptiveness));
         setAllowVideoMixedDecoderSupportAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(
-                    Parameters.FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS,
                 defaultValue.allowVideoMixedDecoderSupportAdaptiveness));
         // Audio
         setExceedAudioConstraintsIfNecessary(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NCESSARY),
+                Parameters.FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NECESSARY,
                 defaultValue.exceedAudioConstraintsIfNecessary));
         setAllowAudioMixedMimeTypeAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS,
                 defaultValue.allowAudioMixedMimeTypeAdaptiveness));
         setAllowAudioMixedSampleRateAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS,
                 defaultValue.allowAudioMixedSampleRateAdaptiveness));
         setAllowAudioMixedChannelCountAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(
-                    Parameters.FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS,
                 defaultValue.allowAudioMixedChannelCountAdaptiveness));
         setAllowAudioMixedDecoderSupportAdaptiveness(
             bundle.getBoolean(
-                Parameters.keyForField(
-                    Parameters.FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS),
+                Parameters.FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS,
                 defaultValue.allowAudioMixedDecoderSupportAdaptiveness));
         setConstrainAudioChannelCountToDeviceCapabilities(
             bundle.getBoolean(
-                Parameters.keyForField(
-                    Parameters.FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES),
+                Parameters.FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES,
                 defaultValue.constrainAudioChannelCountToDeviceCapabilities));
         // General
         setExceedRendererCapabilitiesIfNecessary(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY),
+                Parameters.FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY,
                 defaultValue.exceedRendererCapabilitiesIfNecessary));
         setTunnelingEnabled(
-            bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_TUNNELING_ENABLED),
-                defaultValue.tunnelingEnabled));
+            bundle.getBoolean(Parameters.FIELD_TUNNELING_ENABLED, defaultValue.tunnelingEnabled));
         setAllowMultipleAdaptiveSelections(
             bundle.getBoolean(
-                Parameters.keyForField(Parameters.FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS),
+                Parameters.FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS,
                 defaultValue.allowMultipleAdaptiveSelections));
+        setAllowInvalidateSelectionsOnRendererCapabilitiesChange(
+            bundle.getBoolean(
+                Parameters.FIELD_ALLOW_INVALIDATE_SELECTIONS_ON_RENDERER_CAPABILITIES_CHANGE,
+                defaultValue.allowInvalidateSelectionsOnRendererCapabilitiesChange));
         // Overrides
         selectionOverrides = new SparseArray<>();
         setSelectionOverridesFromBundle(bundle);
         rendererDisabledFlags =
             makeSparseBooleanArrayFromTrueKeys(
-                bundle.getIntArray(
-                    Parameters.keyForField(Parameters.FIELD_RENDERER_DISABLED_INDICES)));
+                bundle.getIntArray(Parameters.FIELD_RENDERER_DISABLED_INDICES));
       }
 
       @CanIgnoreReturnValue
@@ -1293,6 +1300,21 @@ public class DefaultTrackSelector extends MappingTrackSelector {
         return this;
       }
 
+      /**
+       * Sets whether to allow to invalidate selections on renderer capabilities change.
+       *
+       * @param allowInvalidateSelectionsOnRendererCapabilitiesChange Whether to allow to invalidate
+       *     selections.
+       * @return This builder.
+       */
+      @CanIgnoreReturnValue
+      public Builder setAllowInvalidateSelectionsOnRendererCapabilitiesChange(
+          boolean allowInvalidateSelectionsOnRendererCapabilitiesChange) {
+        this.allowInvalidateSelectionsOnRendererCapabilitiesChange =
+            allowInvalidateSelectionsOnRendererCapabilitiesChange;
+        return this;
+      }
+
       @CanIgnoreReturnValue
       @Override
       public Builder addOverride(TrackSelectionOverride override) {
@@ -1550,6 +1572,7 @@ public class DefaultTrackSelector extends MappingTrackSelector {
         exceedRendererCapabilitiesIfNecessary = true;
         tunnelingEnabled = false;
         allowMultipleAdaptiveSelections = true;
+        allowInvalidateSelectionsOnRendererCapabilitiesChange = false;
       }
 
       private static SparseArray<Map<TrackGroupArray, @NullableType SelectionOverride>>
@@ -1567,20 +1590,17 @@ public class DefaultTrackSelector extends MappingTrackSelector {
       private void setSelectionOverridesFromBundle(Bundle bundle) {
         @Nullable
         int[] rendererIndices =
-            bundle.getIntArray(
-                Parameters.keyForField(Parameters.FIELD_SELECTION_OVERRIDES_RENDERER_INDICES));
+            bundle.getIntArray(Parameters.FIELD_SELECTION_OVERRIDES_RENDERER_INDICES);
         @Nullable
         ArrayList<Bundle> trackGroupArrayBundles =
-            bundle.getParcelableArrayList(
-                Parameters.keyForField(Parameters.FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS));
+            bundle.getParcelableArrayList(Parameters.FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS);
         List<TrackGroupArray> trackGroupArrays =
             trackGroupArrayBundles == null
                 ? ImmutableList.of()
                 : BundleableUtil.fromBundleList(TrackGroupArray.CREATOR, trackGroupArrayBundles);
         @Nullable
         SparseArray<Bundle> selectionOverrideBundles =
-            bundle.getSparseParcelableArray(
-                Parameters.keyForField(Parameters.FIELD_SELECTION_OVERRIDES));
+            bundle.getSparseParcelableArray(Parameters.FIELD_SELECTION_OVERRIDES);
         SparseArray<SelectionOverride> selectionOverrides =
             selectionOverrideBundles == null
                 ? new SparseArray<>()
@@ -1725,6 +1745,12 @@ public class DefaultTrackSelector extends MappingTrackSelector {
      */
     public final boolean allowMultipleAdaptiveSelections;
 
+    /**
+     * Whether to allow to invalidate selections on renderer capabilities change. The default value
+     * is {@code false}.
+     */
+    public final boolean allowInvalidateSelectionsOnRendererCapabilitiesChange;
+
     // Overrides
     private final SparseArray<Map<TrackGroupArray, @NullableType SelectionOverride>>
         selectionOverrides;
@@ -1749,6 +1775,8 @@ public class DefaultTrackSelector extends MappingTrackSelector {
       exceedRendererCapabilitiesIfNecessary = builder.exceedRendererCapabilitiesIfNecessary;
       tunnelingEnabled = builder.tunnelingEnabled;
       allowMultipleAdaptiveSelections = builder.allowMultipleAdaptiveSelections;
+      allowInvalidateSelectionsOnRendererCapabilitiesChange =
+          builder.allowInvalidateSelectionsOnRendererCapabilitiesChange;
       // Overrides
       selectionOverrides = builder.selectionOverrides;
       rendererDisabledFlags = builder.rendererDisabledFlags;
@@ -1839,6 +1867,8 @@ public class DefaultTrackSelector extends MappingTrackSelector {
           && exceedRendererCapabilitiesIfNecessary == other.exceedRendererCapabilitiesIfNecessary
           && tunnelingEnabled == other.tunnelingEnabled
           && allowMultipleAdaptiveSelections == other.allowMultipleAdaptiveSelections
+          && allowInvalidateSelectionsOnRendererCapabilitiesChange
+              == other.allowInvalidateSelectionsOnRendererCapabilitiesChange
           // Overrides
           && areRendererDisabledFlagsEqual(rendererDisabledFlags, other.rendererDisabledFlags)
           && areSelectionOverridesEqual(selectionOverrides, other.selectionOverrides);
@@ -1864,38 +1894,49 @@ public class DefaultTrackSelector extends MappingTrackSelector {
       result = 31 * result + (exceedRendererCapabilitiesIfNecessary ? 1 : 0);
       result = 31 * result + (tunnelingEnabled ? 1 : 0);
       result = 31 * result + (allowMultipleAdaptiveSelections ? 1 : 0);
+      result = 31 * result + (allowInvalidateSelectionsOnRendererCapabilitiesChange ? 1 : 0);
       // Overrides (omitted from hashCode).
       return result;
     }
 
     // Bundleable implementation.
 
-    private static final int FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY = FIELD_CUSTOM_ID_BASE;
-    private static final int FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 1;
-    private static final int FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS = FIELD_CUSTOM_ID_BASE + 2;
-    private static final int FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NCESSARY = FIELD_CUSTOM_ID_BASE + 3;
-    private static final int FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 4;
-    private static final int FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 5;
-    private static final int FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 6;
-    private static final int FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY =
-        FIELD_CUSTOM_ID_BASE + 7;
-    private static final int FIELD_TUNNELING_ENABLED = FIELD_CUSTOM_ID_BASE + 8;
-    private static final int FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS = FIELD_CUSTOM_ID_BASE + 9;
-    private static final int FIELD_SELECTION_OVERRIDES_RENDERER_INDICES = FIELD_CUSTOM_ID_BASE + 10;
-    private static final int FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS =
-        FIELD_CUSTOM_ID_BASE + 11;
-    private static final int FIELD_SELECTION_OVERRIDES = FIELD_CUSTOM_ID_BASE + 12;
-    private static final int FIELD_RENDERER_DISABLED_INDICES = FIELD_CUSTOM_ID_BASE + 13;
-    private static final int FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 14;
-    private static final int FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS =
-        FIELD_CUSTOM_ID_BASE + 15;
-    private static final int FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES =
-        FIELD_CUSTOM_ID_BASE + 16;
+    private static final String FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE);
+    private static final String FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 1);
+    private static final String FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 2);
+    private static final String FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NECESSARY =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 3);
+    private static final String FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 4);
+    private static final String FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 5);
+    private static final String FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 6);
+    private static final String FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 7);
+    private static final String FIELD_TUNNELING_ENABLED =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 8);
+    private static final String FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 9);
+    private static final String FIELD_SELECTION_OVERRIDES_RENDERER_INDICES =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 10);
+    private static final String FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 11);
+    private static final String FIELD_SELECTION_OVERRIDES =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 12);
+    private static final String FIELD_RENDERER_DISABLED_INDICES =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 13);
+    private static final String FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 14);
+    private static final String FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 15);
+    private static final String FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 16);
+    private static final String FIELD_ALLOW_INVALIDATE_SELECTIONS_ON_RENDERER_CAPABILITIES_CHANGE =
+        Util.intToStringMaxRadix(FIELD_CUSTOM_ID_BASE + 17);
 
     @Override
     public Bundle toBundle() {
@@ -1903,49 +1944,43 @@ public class DefaultTrackSelector extends MappingTrackSelector {
 
       // Video
       bundle.putBoolean(
-          keyForField(FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY),
-          exceedVideoConstraintsIfNecessary);
+          FIELD_EXCEED_VIDEO_CONSTRAINTS_IF_NECESSARY, exceedVideoConstraintsIfNecessary);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS),
-          allowVideoMixedMimeTypeAdaptiveness);
+          FIELD_ALLOW_VIDEO_MIXED_MIME_TYPE_ADAPTIVENESS, allowVideoMixedMimeTypeAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS),
-          allowVideoNonSeamlessAdaptiveness);
+          FIELD_ALLOW_VIDEO_NON_SEAMLESS_ADAPTIVENESS, allowVideoNonSeamlessAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS),
+          FIELD_ALLOW_VIDEO_MIXED_DECODER_SUPPORT_ADAPTIVENESS,
           allowVideoMixedDecoderSupportAdaptiveness);
       // Audio
       bundle.putBoolean(
-          keyForField(FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NCESSARY),
-          exceedAudioConstraintsIfNecessary);
+          FIELD_EXCEED_AUDIO_CONSTRAINTS_IF_NECESSARY, exceedAudioConstraintsIfNecessary);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS),
-          allowAudioMixedMimeTypeAdaptiveness);
+          FIELD_ALLOW_AUDIO_MIXED_MIME_TYPE_ADAPTIVENESS, allowAudioMixedMimeTypeAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS),
-          allowAudioMixedSampleRateAdaptiveness);
+          FIELD_ALLOW_AUDIO_MIXED_SAMPLE_RATE_ADAPTIVENESS, allowAudioMixedSampleRateAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS),
+          FIELD_ALLOW_AUDIO_MIXED_CHANNEL_COUNT_ADAPTIVENESS,
           allowAudioMixedChannelCountAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS),
+          FIELD_ALLOW_AUDIO_MIXED_DECODER_SUPPORT_ADAPTIVENESS,
           allowAudioMixedDecoderSupportAdaptiveness);
       bundle.putBoolean(
-          keyForField(FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES),
+          FIELD_CONSTRAIN_AUDIO_CHANNEL_COUNT_TO_DEVICE_CAPABILITIES,
           constrainAudioChannelCountToDeviceCapabilities);
       // General
       bundle.putBoolean(
-          keyForField(FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY),
-          exceedRendererCapabilitiesIfNecessary);
-      bundle.putBoolean(keyForField(FIELD_TUNNELING_ENABLED), tunnelingEnabled);
+          FIELD_EXCEED_RENDERER_CAPABILITIES_IF_NECESSARY, exceedRendererCapabilitiesIfNecessary);
+      bundle.putBoolean(FIELD_TUNNELING_ENABLED, tunnelingEnabled);
+      bundle.putBoolean(FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS, allowMultipleAdaptiveSelections);
       bundle.putBoolean(
-          keyForField(FIELD_ALLOW_MULTIPLE_ADAPTIVE_SELECTIONS), allowMultipleAdaptiveSelections);
+          FIELD_ALLOW_INVALIDATE_SELECTIONS_ON_RENDERER_CAPABILITIES_CHANGE,
+          allowInvalidateSelectionsOnRendererCapabilitiesChange);
 
       putSelectionOverridesToBundle(bundle, selectionOverrides);
       // Only true values are put into rendererDisabledFlags.
       bundle.putIntArray(
-          keyForField(FIELD_RENDERER_DISABLED_INDICES),
-          getKeysFromSparseBooleanArray(rendererDisabledFlags));
+          FIELD_RENDERER_DISABLED_INDICES, getKeysFromSparseBooleanArray(rendererDisabledFlags));
 
       return bundle;
     }
@@ -1978,12 +2013,12 @@ public class DefaultTrackSelector extends MappingTrackSelector {
           rendererIndices.add(rendererIndex);
         }
         bundle.putIntArray(
-            keyForField(FIELD_SELECTION_OVERRIDES_RENDERER_INDICES), Ints.toArray(rendererIndices));
+            FIELD_SELECTION_OVERRIDES_RENDERER_INDICES, Ints.toArray(rendererIndices));
         bundle.putParcelableArrayList(
-            keyForField(FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS),
+            FIELD_SELECTION_OVERRIDES_TRACK_GROUP_ARRAYS,
             BundleableUtil.toBundleArrayList(trackGroupArrays));
         bundle.putSparseParcelableArray(
-            keyForField(FIELD_SELECTION_OVERRIDES), BundleableUtil.toBundleSparseArray(selections));
+            FIELD_SELECTION_OVERRIDES, BundleableUtil.toBundleSparseArray(selections));
       }
     }
 
@@ -2111,43 +2146,29 @@ public class DefaultTrackSelector extends MappingTrackSelector {
 
     // Bundleable implementation.
 
-    @Documented
-    @Retention(RetentionPolicy.SOURCE)
-    @Target(TYPE_USE)
-    @IntDef({
-      FIELD_GROUP_INDEX,
-      FIELD_TRACKS,
-      FIELD_TRACK_TYPE,
-    })
-    private @interface FieldNumber {}
-
-    private static final int FIELD_GROUP_INDEX = 0;
-    private static final int FIELD_TRACKS = 1;
-    private static final int FIELD_TRACK_TYPE = 2;
+    private static final String FIELD_GROUP_INDEX = Util.intToStringMaxRadix(0);
+    private static final String FIELD_TRACKS = Util.intToStringMaxRadix(1);
+    private static final String FIELD_TRACK_TYPE = Util.intToStringMaxRadix(2);
 
     @Override
     public Bundle toBundle() {
       Bundle bundle = new Bundle();
-      bundle.putInt(keyForField(FIELD_GROUP_INDEX), groupIndex);
-      bundle.putIntArray(keyForField(FIELD_TRACKS), tracks);
-      bundle.putInt(keyForField(FIELD_TRACK_TYPE), type);
+      bundle.putInt(FIELD_GROUP_INDEX, groupIndex);
+      bundle.putIntArray(FIELD_TRACKS, tracks);
+      bundle.putInt(FIELD_TRACK_TYPE, type);
       return bundle;
     }
 
     /** Object that can restore {@code SelectionOverride} from a {@link Bundle}. */
     public static final Creator<SelectionOverride> CREATOR =
         bundle -> {
-          int groupIndex = bundle.getInt(keyForField(FIELD_GROUP_INDEX), -1);
-          @Nullable int[] tracks = bundle.getIntArray(keyForField(FIELD_TRACKS));
-          int trackType = bundle.getInt(keyForField(FIELD_TRACK_TYPE), -1);
+          int groupIndex = bundle.getInt(FIELD_GROUP_INDEX, -1);
+          @Nullable int[] tracks = bundle.getIntArray(FIELD_TRACKS);
+          int trackType = bundle.getInt(FIELD_TRACK_TYPE, -1);
           Assertions.checkArgument(groupIndex >= 0 && trackType >= 0);
           Assertions.checkNotNull(tracks);
           return new SelectionOverride(groupIndex, tracks, trackType);
         };
-
-    private static String keyForField(@FieldNumber int field) {
-      return Integer.toString(field, Character.MAX_RADIX);
-    }
   }
 
   /**
@@ -2204,14 +2225,6 @@ public class DefaultTrackSelector extends MappingTrackSelector {
   private AudioAttributes audioAttributes;
 
   /**
-   * @deprecated Use {@link #DefaultTrackSelector(Context)} instead.
-   */
-  @Deprecated
-  public DefaultTrackSelector() {
-    this(Parameters.DEFAULT_WITHOUT_CONTEXT, new AdaptiveTrackSelection.Factory());
-  }
-
-  /**
    * @param context Any {@link Context}.
    */
   public DefaultTrackSelector(Context context) {
@@ -2238,6 +2251,8 @@ public class DefaultTrackSelector extends MappingTrackSelector {
    * @deprecated Use {@link #DefaultTrackSelector(Context, TrackSelectionParameters,
    *     ExoTrackSelection.Factory)}
    */
+  // TODO: When this constructor is deleted, this.context can be made non-null and all
+  //       null-conditional can be removed (including the warning logging when it's null).
   @Deprecated
   public DefaultTrackSelector(
       TrackSelectionParameters parameters, ExoTrackSelection.Factory trackSelectionFactory) {
@@ -2378,6 +2393,19 @@ public class DefaultTrackSelector extends MappingTrackSelector {
     }
   }
 
+  @Override
+  @Nullable
+  public RendererCapabilities.Listener getRendererCapabilitiesListener() {
+    return this;
+  }
+
+  // RendererCapabilities.Listener implementation.
+
+  @Override
+  public void onRendererCapabilitiesChanged(Renderer renderer) {
+    maybeInvalidateForRendererCapabilitiesChange(renderer);
+  }
+
   // MappingTrackSelector implementation.
 
   @Override
@@ -2464,6 +2492,7 @@ public class DefaultTrackSelector extends MappingTrackSelector {
    *     renderer, track group and track (in that order).
    * @param rendererMixedMimeTypeAdaptationSupports The {@link AdaptiveSupport} for mixed MIME type
    *     adaptation for the renderer.
+   * @param params The parameters to use for the track selection.
    * @return The {@link ExoTrackSelection.Definition}s for the renderers. A null entry indicates no
    *     selection was made.
    * @throws ExoPlaybackException If an error occurs while selecting the tracks.
@@ -2786,6 +2815,16 @@ public class DefaultTrackSelector extends MappingTrackSelector {
     }
     if (shouldInvalidate) {
       invalidate();
+    }
+  }
+
+  private void maybeInvalidateForRendererCapabilitiesChange(Renderer renderer) {
+    boolean shouldInvalidate;
+    synchronized (lock) {
+      shouldInvalidate = parameters.allowInvalidateSelectionsOnRendererCapabilitiesChange;
+    }
+    if (shouldInvalidate) {
+      invalidateForRendererCapabilitiesChange(renderer);
     }
   }
 

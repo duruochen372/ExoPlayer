@@ -57,8 +57,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.List;
 
-/** Information about a {@link MediaCodec} for a given mime type. */
+/**
+ * Information about a {@link MediaCodec} for a given MIME type.
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
+ */
 @SuppressWarnings("InlinedApi")
+@Deprecated
 public final class MediaCodecInfo {
 
   public static final String TAG = "MediaCodecInfo";
@@ -149,10 +157,10 @@ public final class MediaCodecInfo {
    * Creates an instance.
    *
    * @param name The name of the {@link MediaCodec}.
-   * @param mimeType A mime type supported by the {@link MediaCodec}.
+   * @param mimeType A MIME type supported by the {@link MediaCodec}.
    * @param codecMimeType The MIME type that the codec uses for media of type {@code #mimeType}.
    *     Equal to {@code mimeType} unless the codec is known to use a non-standard MIME type alias.
-   * @param capabilities The capabilities of the {@link MediaCodec} for the specified mime type, or
+   * @param capabilities The capabilities of the {@link MediaCodec} for the specified MIME type, or
    *     {@code null} if not known.
    * @param hardwareAccelerated Whether the {@link MediaCodec} is hardware accelerated.
    * @param softwareOnly Whether the {@link MediaCodec} is software only.
@@ -243,7 +251,8 @@ public final class MediaCodecInfo {
   }
 
   /**
-   * Returns whether the decoder may support decoding the given {@code format}.
+   * Returns whether the decoder may support decoding the given {@code format} both functionally and
+   * performantly.
    *
    * @param format The input media format.
    * @return Whether the decoder may support decoding the given {@code format}.
@@ -254,7 +263,7 @@ public final class MediaCodecInfo {
       return false;
     }
 
-    if (!isCodecProfileAndLevelSupported(format)) {
+    if (!isCodecProfileAndLevelSupported(format, /* checkPerformanceCapabilities= */ true)) {
       return false;
     }
 
@@ -281,15 +290,24 @@ public final class MediaCodecInfo {
     }
   }
 
+  /**
+   * Returns whether the decoder may functionally support decoding the given {@code format}.
+   *
+   * @param format The input media format.
+   * @return Whether the decoder may functionally support decoding the given {@code format}.
+   */
+  public boolean isFormatFunctionallySupported(Format format) {
+    return isSampleMimeTypeSupported(format)
+        && isCodecProfileAndLevelSupported(format, /* checkPerformanceCapabilities= */ false);
+  }
+
   private boolean isSampleMimeTypeSupported(Format format) {
     return mimeType.equals(format.sampleMimeType)
         || mimeType.equals(MediaCodecUtil.getAlternativeCodecMimeType(format));
   }
 
-  private boolean isCodecProfileAndLevelSupported(Format format) {
-    if (format.codecs == null) {
-      return true;
-    }
+  private boolean isCodecProfileAndLevelSupported(
+      Format format, boolean checkPerformanceCapabilities) {
     Pair<Integer, Integer> codecProfileAndLevel = MediaCodecUtil.getCodecProfileAndLevel(format);
     if (codecProfileAndLevel == null) {
       // If we don't know any better, we assume that the profile and level are supported.
@@ -325,7 +343,7 @@ public final class MediaCodecInfo {
 
     for (CodecProfileLevel profileLevel : profileLevels) {
       if (profileLevel.profile == profile
-          && profileLevel.level >= level
+          && (profileLevel.level >= level || !checkPerformanceCapabilities)
           && !needsProfileExcludedWorkaround(mimeType, profile)) {
         return true;
       }
@@ -845,7 +863,7 @@ public final class MediaCodecInfo {
    * @param name The name of the codec.
    * @return Whether to enable the workaround.
    */
-  private static final boolean needsRotatedVerticalResolutionWorkaround(String name) {
+  private static boolean needsRotatedVerticalResolutionWorkaround(String name) {
     if ("OMX.MTK.VIDEO.DECODER.HEVC".equals(name) && "mcv5a".equals(Util.DEVICE)) {
       // See https://github.com/google/ExoPlayer/issues/6612.
       return false;
@@ -862,6 +880,17 @@ public final class MediaCodecInfo {
     return MimeTypes.VIDEO_H265.equals(mimeType)
         && CodecProfileLevel.HEVCProfileMain10 == profile
         && ("sailfish".equals(Util.DEVICE) || "marlin".equals(Util.DEVICE));
+  }
+
+  /** Whether the device is known to have wrong {@link PerformancePoint} declarations. */
+  private static boolean needsIgnorePerformancePointsWorkaround() {
+    // See https://github.com/google/ExoPlayer/issues/10898 and [internal ref: b/267324685].
+    return /* Chromecast with Google TV */ Util.DEVICE.equals("sabrina")
+        || Util.DEVICE.equals("boreal")
+        /* Lenovo Tablet M10 FHD Plus */
+        || Util.MODEL.startsWith("Lenovo TB-X605")
+        || Util.MODEL.startsWith("Lenovo TB-X606")
+        || Util.MODEL.startsWith("Lenovo TB-X616");
   }
 
   /** Possible outcomes of evaluating PerformancePoint coverage */
@@ -888,7 +917,9 @@ public final class MediaCodecInfo {
         VideoCapabilities videoCapabilities, int width, int height, double frameRate) {
       List<PerformancePoint> performancePointList =
           videoCapabilities.getSupportedPerformancePoints();
-      if (performancePointList == null || performancePointList.isEmpty()) {
+      if (performancePointList == null
+          || performancePointList.isEmpty()
+          || needsIgnorePerformancePointsWorkaround()) {
         return COVERAGE_RESULT_NO_EMPTY_LIST;
       }
 

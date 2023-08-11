@@ -27,7 +27,15 @@ import com.google.common.primitives.Longs;
 import java.util.Arrays;
 import java.util.List;
 
-/** A collection of metadata entries. */
+/**
+ * A collection of metadata entries.
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
+ */
+@Deprecated
 public final class Metadata implements Parcelable {
 
   /** A metadata entry. */
@@ -52,11 +60,8 @@ public final class Metadata implements Parcelable {
     }
 
     /**
-     * Updates the {@link MediaMetadata.Builder} with the type specific values stored in this Entry.
-     *
-     * <p>The order of the {@link Entry} objects in the {@link Metadata} matters. If two {@link
-     * Entry} entries attempt to populate the same {@link MediaMetadata} field, then the last one in
-     * the list is used.
+     * Updates the {@link MediaMetadata.Builder} with the type-specific values stored in this {@code
+     * Entry}.
      *
      * @param builder The builder to be updated.
      */

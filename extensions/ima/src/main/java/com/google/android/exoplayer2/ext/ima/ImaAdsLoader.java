@@ -87,7 +87,13 @@ import java.util.Set;
  * be registered via the {@link AdViewProvider} passed to the {@link AdsMediaSource}. See the <a
  * href="https://developers.google.com/interactive-media-ads/docs/sdks/android/client-side/omsdk">IMA
  * SDK Open Measurement documentation</a> for more information.
+ *
+ * @deprecated com.google.android.exoplayer2 is deprecated. Please migrate to androidx.media3 (which
+ *     contains the same ExoPlayer code). See <a
+ *     href="https://developer.android.com/guide/topics/media/media3/getting-started/migration-guide">the
+ *     migration guide</a> for more details, including a script to help with the migration.
  */
+@Deprecated
 public final class ImaAdsLoader implements AdsLoader {
 
   static {
@@ -264,7 +270,7 @@ public final class ImaAdsLoader implements AdsLoader {
     /**
      * Sets the duration in milliseconds for which the player must buffer while preloading an ad
      * group before that ad group is skipped and marked as having failed to load. Pass {@link
-     * C#TIME_UNSET} if there should be no such timeout. The default value is {@value
+     * C#TIME_UNSET} if there should be no such timeout. The default value is {@link
      * #DEFAULT_AD_PRELOAD_TIMEOUT_MS} ms.
      *
      * <p>The purpose of this timeout is to avoid playback getting stuck in the unexpected case that

@@ -33,6 +33,7 @@ import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Clock;
+import com.google.android.exoplayer2.util.HandlerWrapper;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
@@ -51,6 +52,7 @@ public class TestExoPlayerBuilder {
   private @MonotonicNonNull Looper looper;
   private long seekBackIncrementMs;
   private long seekForwardIncrementMs;
+  private boolean deviceVolumeControlEnabled;
 
   public TestExoPlayerBuilder(Context context) {
     this.context = context;
@@ -64,6 +66,7 @@ public class TestExoPlayerBuilder {
     }
     seekBackIncrementMs = C.DEFAULT_SEEK_BACK_INCREMENT_MS;
     seekForwardIncrementMs = C.DEFAULT_SEEK_FORWARD_INCREMENT_MS;
+    deviceVolumeControlEnabled = false;
   }
 
   /**
@@ -279,6 +282,18 @@ public class TestExoPlayerBuilder {
     return this;
   }
 
+  /**
+   * Sets the variable controlling player's ability to get/set device volume.
+   *
+   * @param deviceVolumeControlEnabled Whether the player can get/set device volume.
+   * @return This builder.
+   */
+  @CanIgnoreReturnValue
+  public TestExoPlayerBuilder setDeviceVolumeControlEnabled(boolean deviceVolumeControlEnabled) {
+    this.deviceVolumeControlEnabled = deviceVolumeControlEnabled;
+    return this;
+  }
+
   /** Returns the seek forward increment used by the player. */
   public long getSeekForwardIncrementMs() {
     return seekForwardIncrementMs;
@@ -297,13 +312,16 @@ public class TestExoPlayerBuilder {
               videoRendererEventListener,
               audioRendererEventListener,
               textRendererOutput,
-              metadataRendererOutput) ->
-              renderers != null
-                  ? renderers
-                  : new Renderer[] {
-                    new FakeVideoRenderer(eventHandler, videoRendererEventListener),
-                    new FakeAudioRenderer(eventHandler, audioRendererEventListener)
-                  };
+              metadataRendererOutput) -> {
+            HandlerWrapper clockAwareHandler =
+                clock.createHandler(eventHandler.getLooper(), /* callback= */ null);
+            return renderers != null
+                ? renderers
+                : new Renderer[] {
+                  new FakeVideoRenderer(clockAwareHandler, videoRendererEventListener),
+                  new FakeAudioRenderer(clockAwareHandler, audioRendererEventListener)
+                };
+          };
     }
 
     ExoPlayer.Builder builder =
@@ -316,7 +334,8 @@ public class TestExoPlayerBuilder {
             .setUseLazyPreparation(useLazyPreparation)
             .setLooper(looper)
             .setSeekBackIncrementMs(seekBackIncrementMs)
-            .setSeekForwardIncrementMs(seekForwardIncrementMs);
+            .setSeekForwardIncrementMs(seekForwardIncrementMs)
+            .setDeviceVolumeControlEnabled(deviceVolumeControlEnabled);
     if (mediaSourceFactory != null) {
       builder.setMediaSourceFactory(mediaSourceFactory);
     }
