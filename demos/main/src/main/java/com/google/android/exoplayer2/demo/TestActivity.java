@@ -18,6 +18,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.DeviceInfo;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
@@ -25,16 +26,26 @@ import com.google.android.exoplayer2.MediaMetadata;
 import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Renderer;
+import com.google.android.exoplayer2.RenderersFactory;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.TracksInfo;
 import com.google.android.exoplayer2.audio.AudioAttributes;
+import com.google.android.exoplayer2.audio.AudioRendererEventListener;
+import com.google.android.exoplayer2.audio.MediaCodecAudioRenderer;
+import com.google.android.exoplayer2.ext.ffmpeg.FfmpegAudioRenderer;
+import com.google.android.exoplayer2.ext.ffmpeg.FfmpegVideoRenderer;
 import com.google.android.exoplayer2.metadata.Metadata;
+import com.google.android.exoplayer2.metadata.MetadataOutput;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.text.Cue;
+import com.google.android.exoplayer2.text.TextOutput;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelectionParameters;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.exoplayer2.util.Log;
+import com.google.android.exoplayer2.video.MediaCodecVideoRenderer;
+import com.google.android.exoplayer2.video.VideoRendererEventListener;
 import com.google.android.exoplayer2.video.VideoSize;
 import java.util.List;
 import java.util.Timer;
@@ -62,12 +73,11 @@ public class TestActivity extends AppCompatActivity {
 //  private String mPlayUrl = "http://live.test.xmc.tx.l1.xmcdn.com/live/3-2-842650-765008-317012.flv"; //obs推流
 //  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/838707-1049699.flv?txSecret=2102f8e4c6492984897b61e29e2bcbf6&txTime=631330E2&liveType=2&token=a5728eda9c2843a0a83926f64184ffec&txDelayTime=7&userId=1173284";
 
-  private String mPlayUrl = "http://live.tx.l1.xmcdn.com/live/6350975-22838614.flv";
+  private String mPlayUrl = "http://live.lamia.hw.l1.xmcdn.com/live/1534046-25773755.flv?cdnPlayDelay=true";
 
 
   private TextureView mTextureView;
   private SurfaceView mSurfaceView;
-  private ImageView mIv;
   private RelativeLayout.LayoutParams small =  new RelativeLayout.LayoutParams(500, 500);
   private RelativeLayout.LayoutParams large = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
   private boolean isSmall = false;
@@ -82,7 +92,6 @@ public class TestActivity extends AppCompatActivity {
     mPlayerView = findViewById(R.id.player_view);
     mTextureView = new TextureView(this);
     mSurfaceView = new SurfaceView(this);
-    mIv = findViewById(R.id.image);
 
     mHandler = new Handler(Looper.getMainLooper());
 
@@ -91,8 +100,56 @@ public class TestActivity extends AppCompatActivity {
 
     RelativeLayout rootView = findViewById(R.id.video_root_fl);
     rootView.addView(mSurfaceView, large);
+    DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this) {
 
-    mExoPlayer = new ExoPlayer.Builder(this).build();
+      @Override
+      public Renderer[] createRenderers(Handler eventHandler,
+          VideoRendererEventListener videoRendererEventListener,
+          AudioRendererEventListener audioRendererEventListener, TextOutput textRendererOutput,
+          MetadataOutput metadataRendererOutput) {
+        Renderer[] renderers = super.createRenderers(eventHandler, videoRendererEventListener,
+            audioRendererEventListener, textRendererOutput, metadataRendererOutput);
+
+        int mediaCodecNum = 0;
+        int ffmpegCodecNum = -1;
+        for (int i = 0; i < renderers.length; i++) {
+          if (renderers[i] instanceof MediaCodecAudioRenderer) {
+            mediaCodecNum = i;
+          } else if (renderers[i] instanceof FfmpegAudioRenderer) {
+            Log.d("duruochen111", "音频软解");
+            ffmpegCodecNum = i;
+//            mFfmpegAudioRenderer = (FfmpegAudioRenderer) renderers[i];
+          }
+        }
+        if (mediaCodecNum < ffmpegCodecNum) {
+          Renderer temp = renderers[mediaCodecNum];
+          renderers[mediaCodecNum] = renderers[ffmpegCodecNum];
+          renderers[ffmpegCodecNum] = temp;
+        }
+
+
+        for (int i = 0; i < renderers.length; i++) {
+          if (renderers[i] instanceof MediaCodecVideoRenderer) {
+            mediaCodecNum = i;
+          } else if (renderers[i] instanceof FfmpegVideoRenderer) {
+            Log.d("duruochen111", "视频软解");
+            ffmpegCodecNum = i;
+          }
+        }
+        if (mediaCodecNum < ffmpegCodecNum) {
+          Renderer temp = renderers[mediaCodecNum];
+          renderers[mediaCodecNum] = renderers[ffmpegCodecNum];
+          renderers[ffmpegCodecNum] = temp;
+        }
+
+
+
+        return renderers;
+      }
+    };
+    renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
+
+    mExoPlayer = new ExoPlayer.Builder(this).setRenderersFactory(renderersFactory).build();
 //    mPlayerView.setPlayer(mExoPlayer);
     MediaItem mediaItem = MediaItem.fromUri(mPlayUrl);
 // Set the media item to be played.
@@ -118,7 +175,6 @@ public class TestActivity extends AppCompatActivity {
       }
     });
 
-    Log.d("duruochen111", "aaa");
     mHandler.postDelayed(new Runnable() {
       @Override
       public void run() {
@@ -225,21 +281,6 @@ public class TestActivity extends AppCompatActivity {
       }
 
     });
-
-    Timer timer = new Timer();
-    timer.schedule(new TimerTask() {
-      @Override
-      public void run() {
-        mHandler.post(new Runnable() {
-          @Override
-          public void run() {
-            mIv.setImageBitmap(mTextureView.getBitmap());
-          }
-        });
-
-      }
-    }, 5000, 1000);
-
 
 
     mTextureView.setSurfaceTextureListener(

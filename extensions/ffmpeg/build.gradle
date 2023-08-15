@@ -15,6 +15,33 @@ apply from: "$gradle.ext.exoplayerSettingsDir/common_library_config.gradle"
 
 // Configure the native build only if ffmpeg is present to avoid gradle sync
 // failures if ffmpeg hasn't been built according to the README instructions.
+
+android {
+
+    ndkVersion "21.1.6352462"
+
+
+
+
+    defaultConfig {
+        ndk {
+//            abiFilters 'armeabi-v7a'
+            abiFilters 'arm64-v8a'
+        }
+        externalNativeBuild {
+            cmake {
+                // Debug CMake build type causes video frames to drop,
+                // so native library should always use Release build type.
+                version "3.18.1"
+                cppFlags "-std=c++11"
+                cppFlags "-Wl,-Bsymbolic"
+//                abiFilters 'armeabi-v7a'
+                abiFilters 'arm64-v8a'
+            }
+        }
+    }
+}
+
 if (project.file('src/main/jni/ffmpeg').exists()) {
     android.externalNativeBuild.cmake.path = 'src/main/jni/CMakeLists.txt'
     android.externalNativeBuild.cmake.version = '3.7.1+'

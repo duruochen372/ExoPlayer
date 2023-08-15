@@ -436,6 +436,35 @@ public class DefaultRenderersFactory implements RenderersFactory {
       // The extension is present, but instantiation failed.
       throw new RuntimeException("Error instantiating AV1 extension", e);
     }
+
+
+    try {
+      // Full class names used for constructor args so the LINT rule triggers if any of them move.
+      Class<?> clazz = Class.forName("com.google.android.exoplayer2.ext.ffmpeg.FfmpegVideoRenderer");
+      Constructor<?> constructor =
+          clazz.getConstructor(
+              long.class,
+              android.os.Handler.class,
+              com.google.android.exoplayer2.video.VideoRendererEventListener.class,
+              int.class);
+      Renderer renderer =
+          (Renderer)
+              constructor.newInstance(
+                  allowedVideoJoiningTimeMs,
+                  eventHandler,
+                  eventListener,
+                  MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY);
+      out.add(extensionRendererIndex++, renderer);
+      Log.i(TAG, "Loaded Libgav1VideoRenderer.");
+    } catch (ClassNotFoundException e) {
+      Log.d("duruochen111", "视频软解没找到：" + e.toString());
+      // Expected if the app was built without the extension.
+    } catch (Exception e) {
+      Log.d("duruochen111", "视频软解失败：" + e.toString());
+
+      // The extension is present, but instantiation failed.
+      throw new RuntimeException("Error instantiating AV1 extension", e);
+    }
   }
 
   /**
@@ -532,8 +561,10 @@ public class DefaultRenderersFactory implements RenderersFactory {
       out.add(extensionRendererIndex++, renderer);
       Log.i(TAG, "Loaded FfmpegAudioRenderer.");
     } catch (ClassNotFoundException e) {
+      Log.d("duruochen111", "音频软解没找到：" + e.toString());
       // Expected if the app was built without the extension.
     } catch (Exception e) {
+      Log.d("duruochen111", "音频软解失败：" + e.toString());
       // The extension is present, but instantiation failed.
       throw new RuntimeException("Error instantiating FFmpeg extension", e);
     }
