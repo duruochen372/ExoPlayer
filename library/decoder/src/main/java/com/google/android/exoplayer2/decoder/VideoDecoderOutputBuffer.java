@@ -23,16 +23,21 @@ import java.nio.ByteBuffer;
 /** Video decoder output buffer containing video frame data. */
 public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
 
+  // LINT.IfChange
   public static final int COLORSPACE_UNKNOWN = 0;
   public static final int COLORSPACE_BT601 = 1;
   public static final int COLORSPACE_BT709 = 2;
   public static final int COLORSPACE_BT2020 = 3;
+  // LINT.ThenChange(
+  //     ../../../../../../../../../../../../media/libraries/decoder_av1/src/main/jni/gav1_jni.cc,
+  //     ../../../../../../../../../../../../media/libraries/decoder_vp9/src/main/jni/vpx_jni.cc
+  // )
 
   /** Decoder private data. Used from native code. */
   public int decoderPrivate;
 
   /** Output mode. */
-  public @C.VideoOutputMode int mode;
+  @C.VideoOutputMode public int mode;
   /** RGB buffer for RGB mode. */
   @Nullable public ByteBuffer data;
 
