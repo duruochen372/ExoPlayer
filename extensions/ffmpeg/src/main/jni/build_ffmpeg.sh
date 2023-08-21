@@ -49,6 +49,7 @@ done
 cd "${FFMPEG_MODULE_PATH}"
 ./configure \
     --libdir=android-libs/armeabi-v7a \
+    --incdir=include \
     --arch=arm \
     --cpu=armv7-a \
     --cross-prefix="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi16-" \
@@ -60,21 +61,21 @@ cd "${FFMPEG_MODULE_PATH}"
     --extra-ldflags="-Wl,--fix-cortex-a8" \
     ${COMMON_OPTIONS}
 make -j$JOBS
-make install-libs
+make install
 make clean
-./configure \
-    --libdir=android-libs/arm64-v8a \
-    --arch=aarch64 \
-    --cpu=armv8-a \
-    --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android21-" \
-    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
-    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
-    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
-    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
-    ${COMMON_OPTIONS}
-make -j$JOBS
-make install-libs
-make clean
+#./configure \
+#    --libdir=android-libs/arm64-v8a \
+#    --arch=aarch64 \
+#    --cpu=armv8-a \
+#    --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android21-" \
+#    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
+#    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
+#    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
+#    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
+#    ${COMMON_OPTIONS}
+#make -j$JOBS
+#make install-libs
+#make clean
 #./configure \
 #    --libdir=android-libs/x86 \
 #    --arch=x86 \
