@@ -208,6 +208,7 @@ import java.util.List;
     }
   }
 
+  //创建解码器上下文
   private native long ffmpegInitialize(String codecName, @Nullable byte[] extraData, int threads);
 
   private native long ffmpegReset(long context);
