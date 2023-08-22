@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
-FFMPEG_MODULE_PATH="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg"
+FFMPEG_VERSION="4.2.9"
+FFMPEG_MODULE_PATH="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg-${FFMPEG_VERSION}"
 NDK_PATH="/Users/Drc15H/Library/Android/sdk/ndk/21.1.6352462"
 HOST_PLATFORM="darwin-x86_64"
 ENABLED_DECODERS="h264"
-PREFIX_DIF="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg"
+PREFIX_DIF="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg"
 JOBS=$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || echo 4)
 echo "Using $JOBS jobs for make"
 COMMON_OPTIONS="
@@ -48,8 +49,8 @@ do
 done
 cd "${FFMPEG_MODULE_PATH}"
 ./configure \
-    --libdir=android-libs/armeabi-v7a \
-    --incdir=include \
+    --libdir="${PREFIX_DIF}/android-libs/armeabi-v7a" \
+    --incdir="${PREFIX_DIF}" \
     --arch=arm \
     --cpu=armv7-a \
     --cross-prefix="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi16-" \
@@ -63,19 +64,20 @@ cd "${FFMPEG_MODULE_PATH}"
 make -j$JOBS
 make install
 make clean
-#./configure \
-#    --libdir=android-libs/arm64-v8a \
-#    --arch=aarch64 \
-#    --cpu=armv8-a \
-#    --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android21-" \
-#    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
-#    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
-#    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
-#    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
-#    ${COMMON_OPTIONS}
-#make -j$JOBS
-#make install-libs
-#make clean
+./configure \
+    --libdir="${PREFIX_DIF}/android-libs/arm64-v8a" \
+    --incdir="${PREFIX_DIF}" \
+    --arch=aarch64 \
+    --cpu=armv8-a \
+    --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android21-" \
+    --nm="${TOOLCHAIN_PREFIX}/llvm-nm" \
+    --ar="${TOOLCHAIN_PREFIX}/llvm-ar" \
+    --ranlib="${TOOLCHAIN_PREFIX}/llvm-ranlib" \
+    --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
+    ${COMMON_OPTIONS}
+make -j$JOBS
+make install-libs
+make clean
 #./configure \
 #    --libdir=android-libs/x86 \
 #    --arch=x86 \
