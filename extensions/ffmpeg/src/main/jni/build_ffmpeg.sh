@@ -19,7 +19,7 @@ FFMPEG_VERSION="4.2.9"
 FFMPEG_MODULE_PATH="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg-${FFMPEG_VERSION}"
 NDK_PATH="/Users/Drc15H/Library/Android/sdk/ndk/21.1.6352462"
 HOST_PLATFORM="darwin-x86_64"
-ENABLED_DECODERS="h264"
+ENABLED_DECODERS="h264 hevc"
 PREFIX_DIF="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg"
 JOBS=$(nproc 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null || echo 4)
 echo "Using $JOBS jobs for make"
@@ -43,7 +43,8 @@ COMMON_OPTIONS="
     --extra-ldexeflags=-pie
     "
 TOOLCHAIN_PREFIX="${NDK_PATH}/toolchains/llvm/prebuilt/${HOST_PLATFORM}/bin"
-for decoder in "${ENABLED_DECODERS[@]}"
+IFS=" " read -ra decoders <<< $ENABLED_DECODERS
+for decoder in "${decoders[@]}"
 do
     COMMON_OPTIONS="${COMMON_OPTIONS} --enable-decoder=${decoder}"
 done
@@ -76,7 +77,7 @@ make clean
     --strip="${TOOLCHAIN_PREFIX}/llvm-strip" \
     ${COMMON_OPTIONS}
 make -j$JOBS
-make install-libs
+make install
 make clean
 #./configure \
 #    --libdir=android-libs/x86 \
