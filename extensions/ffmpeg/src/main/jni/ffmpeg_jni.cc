@@ -239,6 +239,7 @@ AVCodec *getCodecByName(JNIEnv *env, jstring codecName) {
     return NULL;
   }
   const char *codecNameChars = env->GetStringUTFChars(codecName, NULL);
+  //获取合适的解码器
   AVCodec *codec = avcodec_find_decoder_by_name(codecNameChars);
   env->ReleaseStringUTFChars(codecName, codecNameChars);
   return codec;
@@ -557,6 +558,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegSendPacket, jlong jContext, jobject encodedData,
 
   int result = 0;
 // Queue input data.
+// 发送数据包到解码队列
   result = avcodec_send_packet(avContext, &packet);
   if (result) {
     logError("avcodec_send_packet", result);
@@ -584,7 +586,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
     LOGE("Failed to allocate output frame.");
     return VIDEO_DECODER_ERROR_OTHER;
   }
-  //解码
+  //解码，接收一帧解码数据
   result = avcodec_receive_frame(avContext, frame);
 
 // fail
@@ -647,7 +649,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
 
   if (jniContext->native_window_width != displayedWidth ||
       jniContext->native_window_height != displayedHeight) {
-    //2. 设置渲染区域和输入格式
+    //2. 设置渲染区域和输入格式  设置ANativeWindow绘制窗口属性
     if (ANativeWindow_setBuffersGeometry(
         jniContext->native_window,
         displayedWidth,
@@ -672,6 +674,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
     return VIDEO_DECODER_ERROR_OTHER;
   }
 
+  //获取出保存的YUV值
   jobject yuvPlanes_object = env->GetObjectField(jOutputBuffer, jniContext->yuvPlanes_field);
   jobjectArray yuvPlanes_array = static_cast<jobjectArray>(yuvPlanes_object);
   jobject yuvPlanesY = env->GetObjectArrayElement(yuvPlanes_array, kPlaneY);

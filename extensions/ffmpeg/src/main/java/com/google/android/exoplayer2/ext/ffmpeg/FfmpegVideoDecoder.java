@@ -142,6 +142,7 @@ import java.util.List;
     ByteBuffer inputData = Util.castNonNull(inputBuffer.data);
     int inputSize = inputData.limit();
     // enqueue origin data
+    //发送数据包到解码队列
     int sendPacketResult = ffmpegSendPacket(nativeContext, inputData, inputSize,
             inputBuffer.timeUs);
     if (sendPacketResult == VIDEO_DECODER_ERROR_INVALID_DATA) {
@@ -158,6 +159,7 @@ import java.util.List;
     boolean decodeOnly = inputBuffer.isDecodeOnly();
     // We need to dequeue the decoded frame from the decoder even when the input data is
     // decode-only.
+    //接收一帧解码数据
     int getFrameResult = ffmpegReceiveFrame(nativeContext, outputMode, outputBuffer, decodeOnly);
     if (getFrameResult == VIDEO_DECODER_ERROR_OTHER) {
       return new FfmpegDecoderException("ffmpegDecode error: (see logcat)");
