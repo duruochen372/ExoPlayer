@@ -106,6 +106,7 @@ public final class FfmpegLibrary {
       Log.w(TAG, "No " + codecName + " decoder available. Check the FFmpeg build configuration.");
       return false;
     }
+    Log.d("duruochen265", "支持格式:" + mimeType);
     return true;
   }
 

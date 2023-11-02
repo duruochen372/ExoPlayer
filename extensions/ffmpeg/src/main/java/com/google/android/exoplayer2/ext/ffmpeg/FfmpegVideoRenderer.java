@@ -29,6 +29,7 @@ import com.google.android.exoplayer2.decoder.DecoderInputBuffer;
 import com.google.android.exoplayer2.decoder.VideoDecoderInputBuffer;
 import com.google.android.exoplayer2.decoder.VideoDecoderOutputBuffer;
 import com.google.android.exoplayer2.util.Assertions;
+import com.google.android.exoplayer2.util.Log;
 import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.TraceUtil;
 import com.google.android.exoplayer2.util.Util;
@@ -125,6 +126,7 @@ public final class FfmpegVideoRenderer extends DecoderVideoRenderer {
   @Override
   @Capabilities
   public final int supportsFormat(Format format) {
+    Log.d("duruochen265", "supportsFormat:" + format.sampleMimeType);
     String mimeType = Assertions.checkNotNull(format.sampleMimeType);
     if (!FfmpegLibrary.isAvailable() || !MimeTypes.isVideo(mimeType)) {
       return C.FORMAT_UNSUPPORTED_TYPE;

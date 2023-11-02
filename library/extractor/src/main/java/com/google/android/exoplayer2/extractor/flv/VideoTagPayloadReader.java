@@ -24,12 +24,15 @@ import com.google.android.exoplayer2.util.MimeTypes;
 import com.google.android.exoplayer2.util.NalUnitUtil;
 import com.google.android.exoplayer2.util.ParsableByteArray;
 import com.google.android.exoplayer2.video.AvcConfig;
+import com.google.android.exoplayer2.video.HevcConfig;
 
 /** Parses video tags from an FLV stream and extracts H.264 nal units. */
 /* package */ final class VideoTagPayloadReader extends TagPayloadReader {
 
   // Video codec.
   private static final int VIDEO_CODEC_AVC = 7;
+
+  private static final int VIDEO_CODEC_HEVC = 12;
 
   // Frame types.
   private static final int VIDEO_FRAME_KEYFRAME = 1;
@@ -49,6 +52,8 @@ import com.google.android.exoplayer2.video.AvcConfig;
   private boolean hasOutputKeyframe;
   private int frameType;
 
+  private int codecType;
+
   /** @param output A {@link TrackOutput} to which samples should be written. */
   public VideoTagPayloadReader(TrackOutput output) {
     super(output);
@@ -67,9 +72,13 @@ import com.google.android.exoplayer2.video.AvcConfig;
     int frameType = (header >> 4) & 0x0F;
     int videoCodec = (header & 0x0F);
     // Support just H.264 encoded content.
-    if (videoCodec != VIDEO_CODEC_AVC) {  //判断是否是h.264编码
+    if (videoCodec != VIDEO_CODEC_AVC && videoCodec != VIDEO_CODEC_HEVC) {  //判断是否是h.264或者h.265编码
       throw new UnsupportedFormatException("Video format not supported: " + videoCodec);
     }
+    this.codecType = videoCodec;
+//    if (videoCodec == VIDEO_CODEC_HEVC) {
+//      Log.d("duruochen265", "当前视频使用的是H.265编码");
+//    }
     this.frameType = frameType;
     return (frameType != VIDEO_FRAME_VIDEO_INFO);
   }
@@ -84,18 +93,36 @@ import com.google.android.exoplayer2.video.AvcConfig;
     if (packetType == AVC_PACKET_TYPE_SEQUENCE_HEADER) {
       ParsableByteArray videoSequence = new ParsableByteArray(new byte[data.bytesLeft()]);
       data.readBytes(videoSequence.getData(), 0, data.bytesLeft());
-      AvcConfig avcConfig = AvcConfig.parse(videoSequence);
-      nalUnitLengthFieldLength = avcConfig.nalUnitLengthFieldLength;
-      // Construct and output the format.
-      Format format =
-          new Format.Builder()
-              .setSampleMimeType(MimeTypes.VIDEO_H264)
-              .setCodecs(avcConfig.codecs)
-              .setWidth(avcConfig.width)
-              .setHeight(avcConfig.height)
-              .setPixelWidthHeightRatio(avcConfig.pixelWidthHeightRatio)
-              .setInitializationData(avcConfig.initializationData)
-              .build();
+      Format format = null;
+      if (codecType == VIDEO_CODEC_AVC) {
+        AvcConfig avcConfig = AvcConfig.parse(videoSequence);
+        nalUnitLengthFieldLength = avcConfig.nalUnitLengthFieldLength;
+        // Construct and output the format.
+        format =
+            new Format.Builder()
+                .setSampleMimeType(MimeTypes.VIDEO_H264)
+                .setCodecs(avcConfig.codecs)
+                .setWidth(avcConfig.width)
+                .setHeight(avcConfig.height)
+                .setPixelWidthHeightRatio(avcConfig.pixelWidthHeightRatio)
+                .setInitializationData(avcConfig.initializationData)
+                .build();
+
+
+
+      } else {
+        HevcConfig hevcConfig = HevcConfig.parse(videoSequence);
+        nalUnitLengthFieldLength = hevcConfig.nalUnitLengthFieldLength;
+        format =
+            new Format.Builder()
+                .setSampleMimeType(MimeTypes.VIDEO_H265)
+                .setCodecs(hevcConfig.codecs)
+//                .setWidth(hevcConfig.width)
+//                .setHeight(hevcConfig.height)
+//                .setPixelWidthHeightRatio(hevcConfig.pixelWidthHeightRatio)
+                .setInitializationData(hevcConfig.initializationData)
+                .build();
+      }
       output.format(format);
       hasOutputFormat = true;
       return false;

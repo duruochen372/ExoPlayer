@@ -39,7 +39,7 @@ extern "C" {
 
 #define LOG_TAG "ffmpeg_jni"
 #define LOGE(...) \
-  ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
+  ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
 
 #define LIBRARY_FUNC(RETURN_TYPE, NAME, ...)                              \
   extern "C" {                                                            \
@@ -239,6 +239,7 @@ AVCodec *getCodecByName(JNIEnv *env, jstring codecName) {
     return NULL;
   }
   const char *codecNameChars = env->GetStringUTFChars(codecName, NULL);
+  LOGE("获取合适的解码器：%s", codecNameChars);
   //获取合适的解码器
   AVCodec *codec = avcodec_find_decoder_by_name(codecNameChars);
   env->ReleaseStringUTFChars(codecName, codecNameChars);
@@ -692,6 +693,9 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
   int strideU = yuvStrides[kPlaneU];
   int strideV = yuvStrides[kPlaneV];
 
+
+  LOGE("duruochen265 planeY=%d  strideY=%d  native_window_buffer.bits=%d  native_window_buffer.stride=%d    displayedWidth=%d  displayedHeight=%d",
+       planeY, strideY, native_window_buffer.bits, native_window_buffer.stride, displayedWidth, displayedHeight);
 // Y plane
   CopyPlane(reinterpret_cast<const uint8_t *>(planeY),
             strideY,
@@ -711,6 +715,8 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
 // before U plane.
   const int v_plane_height = std::min(native_window_buffer_uv_height,
                                       displayedHeight);
+  LOGE("duruochen265 planeV=%d  strideV=%d  y_plane_size=%d  native_window_buffer_uv_stride=%d  displayedWidth=%d  v_plane_height=%d",
+       planeV, strideV, y_plane_size, native_window_buffer_uv_stride, displayedWidth, v_plane_height);
   CopyPlane(
       reinterpret_cast<const uint8_t *>(planeV),
       strideV,
@@ -720,6 +726,8 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
 
   const int v_plane_size = v_plane_height * native_window_buffer_uv_stride;
 
+  LOGE("duruochen265 planeU=%d  strideU=%d  v_plane_size=%d  native_window_buffer_uv_stride=%d  displayedWidth=%d  native_window_buffer_uv_height=%d",
+       planeU, strideU, v_plane_size, native_window_buffer_uv_stride, displayedWidth, native_window_buffer_uv_height);
 // U plane
   CopyPlane(
       reinterpret_cast<const uint8_t *>(planeU),

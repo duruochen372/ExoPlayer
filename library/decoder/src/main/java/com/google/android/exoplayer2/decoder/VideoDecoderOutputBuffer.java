@@ -18,6 +18,7 @@ package com.google.android.exoplayer2.decoder;
 import androidx.annotation.Nullable;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.util.Log;
 import java.nio.ByteBuffer;
 
 /** Video decoder output buffer containing video frame data. */
@@ -153,6 +154,7 @@ public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
     yuvStrides[0] = yStride;
     yuvStrides[1] = uvStride;
     yuvStrides[2] = uvStride;
+    Log.d("duruochen265", "yLength=" + yLength + "  uvLength=" + uvLength + "  yStride=" + yStride + "  uvStride:" + uvStride);
     return true;
   }
 
