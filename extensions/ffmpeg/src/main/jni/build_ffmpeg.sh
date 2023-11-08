@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-FFMPEG_MODULE_PATH=$1  #FFmpeg库的路径（可从FFmpeg官网下载最新版）
+FFMPEG_MODULE_PATH=$1  #FFmpeg库的路径（可从FFmpeg官网下载所需版本分支的最新版）
 NDK_PATH=$2 #ndk路径
 HOST_PLATFORM=$3 #当前编译平台，根据自己的设备进行选择darwin-x86_64、linux-x86_64等
 ENABLED_DECODERS=("${@:4}") #需要支持的解码器  可在FFmpeg目录下运行./configure --list-decoders查看FFmpeg支持的解码器
