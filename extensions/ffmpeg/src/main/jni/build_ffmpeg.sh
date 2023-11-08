@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-FFMPEG_VERSION="4.2.9"
+FFMPEG_VERSION="4.3.6"
 FFMPEG_MODULE_PATH="/Users/Drc15H/GithubProjects/ExoPlayer/extensions/ffmpeg/src/main/jni/ffmpeg-${FFMPEG_VERSION}"
 NDK_PATH="/Users/Drc15H/Library/Android/sdk/ndk/21.1.6352462"
 HOST_PLATFORM="darwin-x86_64"

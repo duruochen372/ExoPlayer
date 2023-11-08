@@ -21,7 +21,8 @@ import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.util.Log;
 import java.nio.ByteBuffer;
 
-/** Video decoder output buffer containing video frame data. */
+/** Video decoder output buffer containing video frame data.
+ * 包含视频帧数据的视频解码器输出缓冲区 */
 public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
 
   // LINT.IfChange
@@ -40,8 +41,9 @@ public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
   /** Output mode. */
   @C.VideoOutputMode public int mode;
   /** RGB buffer for RGB mode. */
-  @Nullable public ByteBuffer data;
+  @Nullable public ByteBuffer data; //存放解码后的数据
 
+  //视频分辨率宽高
   public int width;
   public int height;
   /** The format of the input from which this output buffer was decoded. */
@@ -124,7 +126,7 @@ public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
       return false;
     }
 
-    // Initialize data.
+    // Initialize data. 分配空间
     if (data == null || data.capacity() < minimumYuvSize) {
       data = ByteBuffer.allocateDirect(minimumYuvSize);
     } else {
@@ -137,7 +139,7 @@ public class VideoDecoderOutputBuffer extends DecoderOutputBuffer {
     }
 
     ByteBuffer data = this.data;
-    ByteBuffer[] yuvPlanes = this.yuvPlanes;
+    ByteBuffer[] yuvPlanes = this.yuvPlanes; //存储Y U V的值
 
     // Rewrapping has to be done on every frame since the stride might have changed.
     yuvPlanes[0] = data.slice();

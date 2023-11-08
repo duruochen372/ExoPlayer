@@ -34,6 +34,7 @@ import com.google.android.exoplayer2.audio.AudioAttributes;
 import com.google.android.exoplayer2.audio.AudioRendererEventListener;
 import com.google.android.exoplayer2.audio.MediaCodecAudioRenderer;
 import com.google.android.exoplayer2.ext.ffmpeg.FfmpegAudioRenderer;
+import com.google.android.exoplayer2.ext.ffmpeg.FfmpegLibrary;
 import com.google.android.exoplayer2.ext.ffmpeg.FfmpegVideoRenderer;
 import com.google.android.exoplayer2.metadata.Metadata;
 import com.google.android.exoplayer2.metadata.MetadataOutput;
@@ -73,7 +74,7 @@ public class TestActivity extends AppCompatActivity {
 //  private String mPlayUrl = "http://live.test.xmc.tx.l1.xmcdn.com/live/3-2-842650-765008-317012.flv"; //obs推流
 //  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/838707-1049699.flv?txSecret=2102f8e4c6492984897b61e29e2bcbf6&txTime=631330E2&liveType=2&token=a5728eda9c2843a0a83926f64184ffec&txDelayTime=7&userId=1173284";
 
-  private String mPlayUrl = "http://live.test.tx.l1.xmcdn.com/live/1-1-5-1-1.flv";
+  private String mPlayUrl = "http://live.lamia.hw.l1.xmcdn.com/live/7273638-26793857.flv?abr_pts=-6000";
 
 
   private TextureView mTextureView;
@@ -97,6 +98,7 @@ public class TestActivity extends AppCompatActivity {
 
 //    Log.d("duruochen", "manifest_string=" + manifest_string);
 
+    Log.d("duruochen265", "ffmpegversion:" + FfmpegLibrary.getVersion());
 
     RelativeLayout rootView = findViewById(R.id.video_root_fl);
     rootView.addView(mSurfaceView, large);

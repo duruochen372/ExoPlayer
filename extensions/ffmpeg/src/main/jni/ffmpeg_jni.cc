@@ -447,7 +447,7 @@ struct JniContext {
   int native_window_width = 0;
   int native_window_height = 0;
 };
-
+//planeY,strideY,native_window_buffer.bits,native_window_buffer.stride,displayedWidth,displayedHeight
 void CopyPlane(const uint8_t *source, int source_stride, uint8_t *destination,
                int destination_stride, int width, int height) {
   while (height--) {
@@ -457,6 +457,7 @@ void CopyPlane(const uint8_t *source, int source_stride, uint8_t *destination,
   }
 }
 
+//对齐到16的倍数
 constexpr int AlignTo16(int value) { return (value + 15) & (~15); }
 
 JniContext *createVideoContext(JNIEnv *env,
@@ -511,6 +512,7 @@ JniContext *createVideoContext(JNIEnv *env,
   jniContext->init_method =
       env->GetMethodID(outputBufferClass, "init", "(JILjava/nio/ByteBuffer;)V");
 
+  LOGE("创建解码器：codecContext->pix_fmt=%d", codecContext->pix_fmt);
   return jniContext;
 }
 
@@ -531,7 +533,7 @@ VIDEO_DECODER_FUNC(jlong, ffmpegReset, jlong jContext) {
     LOGE("Tried to reset without a context.");
     return 0L;
   }
-
+  //回放过程中跳转播放，或者切换到一个不同的流，调用此函数，清空内部缓存的帧数据
   avcodec_flush_buffers(context);
   return (jlong) jniContext;
 }
@@ -552,6 +554,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegSendPacket, jlong jContext, jobject encodedData,
 
   uint8_t *inputBuffer = (uint8_t *) env->GetDirectBufferAddress(encodedData);
   AVPacket packet;
+  //初始化AVPacket结构体
   av_init_packet(&packet);
   packet.data = inputBuffer;
   packet.size = length;
@@ -559,7 +562,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegSendPacket, jlong jContext, jobject encodedData,
 
   int result = 0;
 // Queue input data.
-// 发送数据包到解码队列
+// 发送数据包到解码队列进行解码
   result = avcodec_send_packet(avContext, &packet);
   if (result) {
     logError("avcodec_send_packet", result);
@@ -573,6 +576,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegSendPacket, jlong jContext, jobject encodedData,
       return VIDEO_DECODER_ERROR_OTHER;
     }
   }
+  LOGE("avContext->pix_fmt=%d", avContext->pix_fmt);
   return result;
 }
 
@@ -607,13 +611,16 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
 // init time and mode
   env->CallVoidMethod(jOutputBuffer, jniContext->init_method, frame->pts, outputMode, nullptr);
 
+  LOGE("解码后的视频width=%d  height=%d  format=%d  AV_PIX_FMT_YUV420P=%d  linesize[0]=%d  linesize[1]=%d linesize[2]=%d", frame->width, frame->height, frame->format,
+       AV_PIX_FMT_YUV420P, frame->linesize[0], frame->linesize[1], frame->linesize[2]);
 // init data
   const jboolean init_result = env->CallBooleanMethod(
       jOutputBuffer, jniContext->init_for_yuv_frame_method,
       frame->width,
       frame->height,
-      frame->linesize[0], frame->linesize[1],
-      0);
+      frame->linesize[0], //yStride  存储一行像素所需的字节数，就叫 stride，
+      frame->linesize[1], //uvStride
+      0); //colorspace
   if (env->ExceptionCheck()) {
 // Exception is thrown in Java when returning from the native call.
     return VIDEO_DECODER_ERROR_OTHER;
@@ -625,11 +632,12 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
   const jobject data_object = env->GetObjectField(jOutputBuffer, jniContext->data_field);
   jbyte *data = reinterpret_cast<jbyte *>(env->GetDirectBufferAddress(data_object));
   const int32_t uvHeight = (frame->height + 1) / 2;
-  const uint64_t yLength = frame->linesize[0] * frame->height;
-  const uint64_t uvLength = frame->linesize[1] * uvHeight;
+  const uint64_t yLength = frame->linesize[0] * frame->height; //yStride * 高
+  const uint64_t uvLength = frame->linesize[1] * uvHeight; // uvStride * (高 + 1) / 2
 
-// TODO: Support rotate YUV data
 
+
+  //将解码的数据copy给VideoDecoderOutputBuffer的data
   memcpy(data, frame->data[0], yLength);
   memcpy(data + yLength, frame->data[1], uvLength);
   memcpy(data + yLength + uvLength, frame->data[2], uvLength);
@@ -674,6 +682,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
     LOGE("kJniStatusANativeWindowError");
     return VIDEO_DECODER_ERROR_OTHER;
   }
+  LOGE("native_window_buffer.stride=%d   width=%d   height=%d", native_window_buffer.stride, native_window_buffer.width, native_window_buffer.height);
 
   //获取出保存的YUV值
   jobject yuvPlanes_object = env->GetObjectField(jOutputBuffer, jniContext->yuvPlanes_field);
@@ -715,13 +724,15 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
 // before U plane.
   const int v_plane_height = std::min(native_window_buffer_uv_height,
                                       displayedHeight);
+  const int uv_stride = (displayedWidth + 1) / 2;
+
   LOGE("duruochen265 planeV=%d  strideV=%d  y_plane_size=%d  native_window_buffer_uv_stride=%d  displayedWidth=%d  v_plane_height=%d",
        planeV, strideV, y_plane_size, native_window_buffer_uv_stride, displayedWidth, v_plane_height);
   CopyPlane(
       reinterpret_cast<const uint8_t *>(planeV),
       strideV,
       reinterpret_cast<uint8_t *>(native_window_buffer.bits) + y_plane_size,
-      native_window_buffer_uv_stride, displayedWidth,
+      native_window_buffer_uv_stride, uv_stride,
       v_plane_height);
 
   const int v_plane_size = v_plane_height * native_window_buffer_uv_stride;
@@ -734,7 +745,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
       strideU,
       reinterpret_cast<uint8_t *>(native_window_buffer.bits) +
           y_plane_size + v_plane_size,
-      native_window_buffer_uv_stride, displayedWidth,
+      native_window_buffer_uv_stride, uv_stride,
       std::min(native_window_buffer_uv_height,
                displayedHeight));
 

@@ -46,6 +46,8 @@ import java.util.List;
   // LINT.ThenChange(../../../../../../../jni/ffmpeg_jni.cc)
 
   private final String codecName;
+
+  //JniContext结构体内存地址
   private long nativeContext;
   @Nullable private final byte[] extraData;
   private Format format;
@@ -154,6 +156,8 @@ import java.util.List;
     } else if (sendPacketResult == VIDEO_DECODER_ERROR_OTHER) {
       return new FfmpegDecoderException("ffmpegDecode error: (see logcat)");
     }
+    Log.d(TAG, "decode: " + "timeUs=" + inputBuffer.timeUs);
+
 
     // receive frame
     boolean decodeOnly = inputBuffer.isDecodeOnly();

@@ -101,7 +101,7 @@ public class DecoderInputBuffer extends Buffer {
   public boolean waitingForKeys;
 
   /** The time at which the sample should be presented. */
-  public long timeUs;
+  public long timeUs; //pts
 
   /**
    * Supplemental data related to the buffer, if {@link #hasSupplementalData()} returns true. If
