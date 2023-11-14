@@ -85,6 +85,7 @@ static const int VIDEO_DECODER_SUCCESS = 0;
 static const int VIDEO_DECODER_ERROR_INVALID_DATA = -1;
 static const int VIDEO_DECODER_ERROR_OTHER = -2;
 static const int VIDEO_DECODER_ERROR_READ_FRAME = -3;
+static const int VIDEO_DECODER_ERROR_UNSUPPORTED_FORMAT = -4;
 
 /**
  * Returns the AVCodec with the specified name, or NULL if it is not available.
@@ -436,7 +437,6 @@ struct JniContext {
   jfieldID data_field;
   jfieldID yuvPlanes_field;
   jfieldID yuvStrides_field;
-  jmethodID init_for_private_frame_method;
   jmethodID init_for_yuv_frame_method;
   jmethodID init_method;
 
@@ -466,13 +466,14 @@ JniContext *createVideoContext(JNIEnv *env,
                                jint threads) {
   JniContext *jniContext = new(std::nothrow)JniContext();
 
-  //创建解码器上下文
+  //创建描述和控制编码和解码操作的上下文
   AVCodecContext *codecContext = avcodec_alloc_context3(codec);
   if (!codecContext) {
     LOGE("Failed to allocate context.");
     return NULL;
   }
 
+  //设置H.264解码所需的sps、pps信息
   if (extraData) {
     jsize size = env->GetArrayLength(extraData);
     codecContext->extradata_size = size;
@@ -505,8 +506,6 @@ JniContext *createVideoContext(JNIEnv *env,
   jniContext->yuvPlanes_field =
       env->GetFieldID(outputBufferClass, "yuvPlanes", "[Ljava/nio/ByteBuffer;");
   jniContext->yuvStrides_field = env->GetFieldID(outputBufferClass, "yuvStrides", "[I");
-  jniContext->init_for_private_frame_method =
-      env->GetMethodID(outputBufferClass, "initForPrivateFrame", "(II)V");
   jniContext->init_for_yuv_frame_method =
       env->GetMethodID(outputBufferClass, "initForYuvFrame", "(IIIII)Z");
   jniContext->init_method =
@@ -607,6 +606,13 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
     return VIDEO_DECODER_ERROR_OTHER;
   }
 
+
+  if (frame->format != AV_PIX_FMT_YUV420P) {
+    av_frame_free(&frame);
+    LOGE("不支持该像素格式");
+    return VIDEO_DECODER_ERROR_UNSUPPORTED_FORMAT;
+  }
+
 // success
 // init time and mode
   env->CallVoidMethod(jOutputBuffer, jniContext->init_method, frame->pts, outputMode, nullptr);
@@ -651,14 +657,14 @@ VIDEO_DECODER_FUNC(jint, ffmpegReceiveFrame, jlong jContext, jint outputMode, jo
 VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
                    jobject jOutputBuffer, jint displayedWidth, jint displayedHeight) {
   JniContext *const jniContext = reinterpret_cast<JniContext *>(jContext);
-  //1. 利用 Java 层 SurfaceView 传下来的 Surface 对象，获取 ANativeWindow
+  //利用 Java 层 SurfaceView 传下来的 Surface 对象，获取 ANativeWindow
   if (!jniContext->MaybeAcquireNativeWindow(env, jSurface)) {
     return VIDEO_DECODER_ERROR_OTHER;
   }
 
   if (jniContext->native_window_width != displayedWidth ||
       jniContext->native_window_height != displayedHeight) {
-    //2. 设置渲染区域和输入格式  设置ANativeWindow绘制窗口属性
+    //设置渲染区域和输入格式  设置ANativeWindow绘制窗口属性
     if (ANativeWindow_setBuffersGeometry(
         jniContext->native_window,
         displayedWidth,
@@ -703,6 +709,7 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
   int strideV = yuvStrides[kPlaneV];
 
 
+  //将YUV数据按照YV12的存储方式存入ANativeWindow的缓冲区中
   LOGE("duruochen265 planeY=%d  strideY=%d  native_window_buffer.bits=%d  native_window_buffer.stride=%d    displayedWidth=%d  displayedHeight=%d",
        planeY, strideY, native_window_buffer.bits, native_window_buffer.stride, displayedWidth, displayedHeight);
 // Y plane
@@ -722,20 +729,20 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
 // V plane
 // Since the format for ANativeWindow is YV12, V plane is being processed
 // before U plane.
-  const int v_plane_height = std::min(native_window_buffer_uv_height,
+  const int uv_plane_height = std::min(native_window_buffer_uv_height,
                                       displayedHeight);
-  const int uv_stride = (displayedWidth + 1) / 2;
+  const int uvWidth = (displayedWidth + 1) / 2;
 
   LOGE("duruochen265 planeV=%d  strideV=%d  y_plane_size=%d  native_window_buffer_uv_stride=%d  displayedWidth=%d  v_plane_height=%d",
-       planeV, strideV, y_plane_size, native_window_buffer_uv_stride, displayedWidth, v_plane_height);
+       planeV, strideV, y_plane_size, native_window_buffer_uv_stride, displayedWidth, uv_plane_height);
   CopyPlane(
       reinterpret_cast<const uint8_t *>(planeV),
       strideV,
       reinterpret_cast<uint8_t *>(native_window_buffer.bits) + y_plane_size,
-      native_window_buffer_uv_stride, uv_stride,
-      v_plane_height);
+      native_window_buffer_uv_stride, uvWidth,
+      uv_plane_height);
 
-  const int v_plane_size = v_plane_height * native_window_buffer_uv_stride;
+  const int v_plane_size = uv_plane_height * native_window_buffer_uv_stride;
 
   LOGE("duruochen265 planeU=%d  strideU=%d  v_plane_size=%d  native_window_buffer_uv_stride=%d  displayedWidth=%d  native_window_buffer_uv_height=%d",
        planeU, strideU, v_plane_size, native_window_buffer_uv_stride, displayedWidth, native_window_buffer_uv_height);
@@ -745,9 +752,8 @@ VIDEO_DECODER_FUNC(jint, ffmpegRenderFrame, jlong jContext, jobject jSurface,
       strideU,
       reinterpret_cast<uint8_t *>(native_window_buffer.bits) +
           y_plane_size + v_plane_size,
-      native_window_buffer_uv_stride, uv_stride,
-      std::min(native_window_buffer_uv_height,
-               displayedHeight));
+      native_window_buffer_uv_stride, uvWidth,
+      uv_plane_height);
 
 
   env->ReleaseIntArrayElements(*yuvStrides_array, yuvStrides, 0);

@@ -123,6 +123,9 @@ public final class FfmpegVideoRenderer extends DecoderVideoRenderer {
     return TAG;
   }
 
+  /**
+   * 判断是否支持该格式的解码
+   */
   @Override
   @Capabilities
   public final int supportsFormat(Format format) {
@@ -142,6 +145,9 @@ public final class FfmpegVideoRenderer extends DecoderVideoRenderer {
     }
   }
 
+  /**
+   * 创建FFmpeg软解解码器
+   */
   @Override
   protected Decoder<DecoderInputBuffer, VideoDecoderOutputBuffer, FfmpegDecoderException>
   createDecoder(Format format, @Nullable CryptoConfig mediaCrypto)
@@ -155,6 +161,9 @@ public final class FfmpegVideoRenderer extends DecoderVideoRenderer {
     return decoder;
   }
 
+  /**
+   * 将解码后的视频数据送显渲染
+   */
   @Override
   protected void renderOutputBufferToSurface(VideoDecoderOutputBuffer outputBuffer, Surface surface)
           throws FfmpegDecoderException {
@@ -166,6 +175,9 @@ public final class FfmpegVideoRenderer extends DecoderVideoRenderer {
     outputBuffer.release();
   }
 
+  /**
+   * 设置解码器的输出模式
+   */
   @Override
   protected void setDecoderOutputMode(@C.VideoOutputMode int outputMode) {
     if (decoder != null) {

@@ -43,11 +43,13 @@ import java.util.List;
   private static final int VIDEO_DECODER_ERROR_INVALID_DATA = -1;
   private static final int VIDEO_DECODER_ERROR_OTHER = -2;
   private static final int VIDEO_DECODER_ERROR_READ_FRAME = -3;
+  private static final int VIDEO_DECODER_ERROR_UNSUPPORTED_FORMAT = -4;
   // LINT.ThenChange(../../../../../../../jni/ffmpeg_jni.cc)
 
   private final String codecName;
 
   //JniContext结构体内存地址
+  //native层的结构体变量，主要负责渲染视频画面
   private long nativeContext;
   @Nullable private final byte[] extraData;
   private Format format;
@@ -141,12 +143,13 @@ import java.util.List;
     }
 
     // send packet
+    //从输入流buffer中获取未解码的压缩数据
     ByteBuffer inputData = Util.castNonNull(inputBuffer.data);
     int inputSize = inputData.limit();
-    // enqueue origin data
-    //发送数据包到解码队列
+    //将压缩数据送去解码
     int sendPacketResult = ffmpegSendPacket(nativeContext, inputData, inputSize,
             inputBuffer.timeUs);
+    Log.d("duruochen--decode", "ffmpegSendPacket:" + sendPacketResult);
     if (sendPacketResult == VIDEO_DECODER_ERROR_INVALID_DATA) {
       outputBuffer.setFlags(C.BUFFER_FLAG_DECODE_ONLY);
       return null;
@@ -163,10 +166,15 @@ import java.util.List;
     boolean decodeOnly = inputBuffer.isDecodeOnly();
     // We need to dequeue the decoded frame from the decoder even when the input data is
     // decode-only.
-    //接收一帧解码数据
+    //接收一帧解码数据，将解码后的数据写入输出缓冲区outputBuffer
     int getFrameResult = ffmpegReceiveFrame(nativeContext, outputMode, outputBuffer, decodeOnly);
+    Log.d("duruochen--decode", "ffmpegReceiveFrame:" + getFrameResult);
     if (getFrameResult == VIDEO_DECODER_ERROR_OTHER) {
       return new FfmpegDecoderException("ffmpegDecode error: (see logcat)");
+    }
+
+    if (getFrameResult == VIDEO_DECODER_ERROR_UNSUPPORTED_FORMAT) {
+      return new FfmpegDecoderException("unsupported pixel format");
     }
 
     if (getFrameResult == VIDEO_DECODER_ERROR_INVALID_DATA) {
