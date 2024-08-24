@@ -117,9 +117,9 @@ import com.google.android.exoplayer2.video.HevcConfig;
             new Format.Builder()
                 .setSampleMimeType(MimeTypes.VIDEO_H265)
                 .setCodecs(hevcConfig.codecs)
-//                .setWidth(hevcConfig.width)
-//                .setHeight(hevcConfig.height)
-//                .setPixelWidthHeightRatio(hevcConfig.pixelWidthHeightRatio)
+                .setWidth(hevcConfig.width)
+                .setHeight(hevcConfig.height)
+                .setPixelWidthHeightRatio(hevcConfig.pixelWidthHeightRatio)
                 .setInitializationData(hevcConfig.initializationData)
                 .build();
       }

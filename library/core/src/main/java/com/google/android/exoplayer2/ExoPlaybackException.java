@@ -144,6 +144,7 @@ public final class ExoPlaybackException extends PlaybackException {
       boolean isRecoverable,
       @ErrorCode int errorCode) {
 
+    //todo 通过rendername判断硬解失败？
     return new ExoPlaybackException(
         TYPE_RENDERER,
         cause,

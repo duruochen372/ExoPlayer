@@ -1870,6 +1870,7 @@ import java.util.concurrent.TimeoutException;
           listener -> listener.onMediaItemTransition(finalMediaItem, mediaItemTransitionReason));
     }
     if (previousPlaybackInfo.playbackError != newPlaybackInfo.playbackError) {
+      //处理异常
       listeners.queueEvent(
           Player.EVENT_PLAYER_ERROR,
           listener -> listener.onPlayerErrorChanged(newPlaybackInfo.playbackError));

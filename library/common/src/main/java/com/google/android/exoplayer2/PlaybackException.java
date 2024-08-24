@@ -180,6 +180,7 @@ public class PlaybackException extends Exception implements Bundleable {
 
   // Decoding errors (4xxx).
 
+  //todo duruochen 硬解失败
   /** Caused by a decoder initialization failure. */
   public static final int ERROR_CODE_DECODER_INIT_FAILED = 4001;
   /** Caused by a decoder query failure. */
