@@ -56,6 +56,13 @@ done
 # --disable-everything 后组件全关，需显式打开库 + 解码器等。
 # 音频解码：用 codec_desc（AUDIO）与 allcodecs.c 中 decoder 名求交，生成全部内置音频解码器开关。
 # 若还要用 avformat 读本地文件，需协议 + demuxer（见上方 ENABLED_* 数组）。
+#
+# 静态库要链进 JNI 的 .so：必须生成 PIC，且勿与 Android 默认 -fPIE 混用，否则 lld 常见报错：
+#   R_AARCH64_ADR_PREL_PG_HI21 cannot be used against symbol 'ff_cos_32'; recompile with -fPIC
+# --enable-pic 会给 C/汇编加 -fPIC 与 -DPIC，使 aarch64 下 movrel 走 PIC 分支。
+# -fno-pie 抵消 configure 对 android 自动加的 -fPIE，避免与「编入 .so」的静态库要求不一致。
+# 另：已对 ffmpeg-4.4.2 打上游 movrelx 补丁（libavutil/aarch64/asm.S 等），对定义在其它 .o 里的
+# 外部表（如 ff_sbr_noise_table、ff_cos_*）经 GOT 取址，否则 lld 仍会报 ADR_PREL_PG_HI21。
 COMMON_OPTIONS="--target-os=android \
     --enable-static \
     --disable-shared \
@@ -119,7 +126,7 @@ echo "=== Compiling for armeabi-v7a ==="
     --cross-prefix="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi${ARMV7_API}-" \
     --cc="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi${ARMV7_API}-clang" \
     --cxx="${TOOLCHAIN_PREFIX}/armv7a-linux-androideabi${ARMV7_API}-clang++" \
-    --extra-cflags="-march=armv7-a -mfloat-abi=softfp -fPIC -O2" \
+    --extra-cflags="-march=armv7-a -mfloat-abi=softfp -fPIC -O2 -fno-pie -fno-PIE" \
     --extra-ldflags="-Wl,--fix-cortex-a8" \
     ${COMMON_OPTIONS}
 
@@ -137,8 +144,8 @@ echo "=== Compiling for arm64-v8a ==="
     --cross-prefix="${TOOLCHAIN_PREFIX}/aarch64-linux-android${ARM64_API}-" \
     --cc="${TOOLCHAIN_PREFIX}/aarch64-linux-android${ARM64_API}-clang" \
     --cxx="${TOOLCHAIN_PREFIX}/aarch64-linux-android${ARM64_API}-clang++" \
-    --extra-cflags="-fPIC -O2" \
-    --extra-cxxflags="-fPIC -O2" \
+    --extra-cflags="-fPIC -O2 -fno-pie -fno-PIE" \
+    --extra-cxxflags="-fPIC -O2 -fno-pie -fno-PIE" \
     --extra-ldflags="-fPIC" \
     ${COMMON_OPTIONS}
 
